@@ -1,0 +1,5 @@
+<launch>
+    <node name="search_server" pkg="team17" type="search_server.py" output="screen">
+    </node>
+
+</launch>
