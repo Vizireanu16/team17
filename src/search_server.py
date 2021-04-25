@@ -66,43 +66,19 @@ class SearchActionServer(object):
         print("The robot will start to move now...")
                 
         #move forward
-        while self.min_distance > goal.approach_distance:
-            self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)    
-            self.robot_controller.publish()
+        while self.min_distance > goal.approach_distance:           
             # check if there has been a request to cancel the action mid-way through:
-            if self.actionserver.is_preempt_requested():
-                rospy.loginfo("Cancelling the camera sweep.")
-                self.actionserver.set_preempted()
-                # stop the robot:
-                self.robot_controller.stop()
-                success = False
-                # exit the loop:
-                break
-            
+            if self.min_distance < goal.approach_distance + 0.1:
+                self.robot_controller.set_move_cmd(0.0, goal.fwd_velocity)    
+                self.robot_controller.publish()
+            else:
+                self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)    
+                self.robot_controller.publish()
+           
             self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
             # populate the feedback message and publish it:
             self.feedback.current_distance_travelled = self.distance
             self.actionserver.publish_feedback(self.feedback)
-        
-        #turn right
-        while self.min_distance == goal.approach_distance:
-            self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)    
-            self.robot_controller.publish()
-            # check if there has been a request to cancel the action mid-way through:
-            if self.actionserver.is_preempt_requested():
-                rospy.loginfo("Cancelling the camera sweep.")
-                self.actionserver.set_preempted()
-                # stop the robot:
-                self.robot_controller.stop()
-                success = False
-                # exit the loop:
-                break
-            
-            self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
-            # populate the feedback message and publish it:
-            self.feedback.current_distance_travelled = self.distance
-            self.actionserver.publish_feedback(self.feedback)
-        
         
         if success:
             rospy.loginfo("approach completed sucessfully.")
