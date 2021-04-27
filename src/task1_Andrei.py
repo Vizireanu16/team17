@@ -51,7 +51,6 @@ class Task1:
             if range < 0.4:
                 i = i + 1
 
-
         #print front_arc
         #print ("ranges: ",front_arc)
         #print ("i: ", i)
@@ -60,9 +59,18 @@ class Task1:
         if i == len(front_arc):
             rotate = True
 
+        if rotate == True:
+            self.vel_cmd.linear.x = 0
+            self.vel_cmd.angular.z = 0.5
+            self.pub.publish(self.vel_cmd)
+            rospy.sleep(1) # Sleeps for 1 sec
+            self.vel_cmd.angular.z = 0
+            self.pub.publish(self.vel_cmd)
+            print "Good"
+
         if msg.ranges[0] < 0.3:
             self.vel_cmd.linear.x = 0
-        self.pub.publish(self.vel_cmd)
+            self.pub.publish(self.vel_cmd)
 
     def __init__(self):
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
