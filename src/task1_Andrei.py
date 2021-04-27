@@ -38,39 +38,92 @@ class Task1:
         rospy.spin()
         """
     def callback(self, msg):
-        print msg.ranges[0]
+        print ("ranges[0] " + str(msg.ranges[0]))
         #self.vel_cmd.linear.x = 0.1
-        left_arc = msg.ranges[0:10]
-        right_arc = msg.ranges[-10:]
+        left_arc = msg.ranges[0:45]
+        right_arc = msg.ranges[-45:]
+        left = np.array(left_arc)
+        right = np.array(right_arc)
         front_arc = np.array(left_arc + right_arc)
 
-        rotate = False
+        #rotate = False
         i = 0
+        l = 0
+        r = 0
 
         for range in front_arc:
             if range < 0.4:
                 i = i + 1
 
+        for range in left:
+            if range < 0.4:
+                l = l + 1
+
+        for range in right:
+            if range < 0.4:
+                r = r + 1
+
         #print front_arc
         #print ("ranges: ",front_arc)
         #print ("i: ", i)
-        print i
-        print len(front_arc)
-        if i == len(front_arc):
-            rotate = True
+        print ("i " + str(i))
+        print ("front_arc " + str(len(front_arc)))
 
-        if rotate == True:
+        print ("l " + str(l))
+        print ("left " + str(len(left)))
+
+        print ("r " + str(r))
+        print ("right " + str(len(right)))
+
+        #if i == len(front_arc):
+        #    rotate = True
+
+        if i == len(front_arc):
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = 0.5
             self.pub.publish(self.vel_cmd)
-            rospy.sleep(1) # Sleeps for 1 sec
-            self.vel_cmd.angular.z = 0
-            self.pub.publish(self.vel_cmd)
-            print "Good"
+            print "a"
 
-        if msg.ranges[0] < 0.3:
+        elif r == len(right) and l < len(left):
+             self.vel_cmd.linear.x = 0
+             self.vel_cmd.angular.z = 0.5
+             self.pub.publish(self.vel_cmd)
+             print "b"
+
+        elif r < len(right) and l == len(left):
+             self.vel_cmd.linear.x = 0
+             self.vel_cmd.angular.z = -0.5
+             self.pub.publish(self.vel_cmd)
+             print "c"
+
+        elif r == 0 and l < len(left) and l != 0:
+             self.vel_cmd.linear.x = 0
+             self.vel_cmd.angular.z = -0.5
+             self.pub.publish(self.vel_cmd)
+             print "d"
+
+        elif r < len(right) and l == 0 and r != 0:
+             self.vel_cmd.linear.x = 0
+             self.vel_cmd.angular.z = 0.5
+             self.pub.publish(self.vel_cmd)
+             print "e"
+
+        elif r < len(right) and l < len(left) and r != 0 and l != 0:
+             self.vel_cmd.linear.x = 0
+             self.vel_cmd.angular.z = 0.5
+             self.pub.publish(self.vel_cmd)
+             print "f"
+
+        elif r < 5 and l < 5:
+             self.vel_cmd.linear.x = 0.1
+             self.vel_cmd.angular.z = 0
+             self.pub.publish(self.vel_cmd)
+             print "g"
+        """
+        elif msg.ranges[0] < 0.3:
             self.vel_cmd.linear.x = 0
             self.pub.publish(self.vel_cmd)
+        """
 
     def __init__(self):
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
