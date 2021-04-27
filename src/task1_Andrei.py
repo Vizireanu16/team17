@@ -4,8 +4,9 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 import numpy as np
 
-class Tasks:
+class Task1:
 
+    """
     def callback(self, msg):
         self.move = Twist()
 
@@ -18,6 +19,8 @@ class Tasks:
         while front_range > 0.01:
             left_arc = msg.ranges[0:10]
             right_arc = msg.ranges[-10:]
+            print (left_arc)
+            print (right_arc)
             front_arc = np.array(left_arc + right_arc)
             front_range = front_arc.min()
             print front_range
@@ -33,7 +36,33 @@ class Tasks:
         #pub = rospy.Publisher("/cmd_vel", Twist)
         #move = Twist()
         rospy.spin()
+        """
+    def callback(self, msg):
+        print msg.ranges[0]
+        #self.vel_cmd.linear.x = 0.1
+        left_arc = msg.ranges[0:10]
+        right_arc = msg.ranges[-10:]
+        front_arc = np.array(left_arc + right_arc)
 
+        rotate = False
+        i = 0
+
+        for range in front_arc:
+            if range < 0.4:
+                i = i + 1
+
+
+        #print front_arc
+        #print ("ranges: ",front_arc)
+        #print ("i: ", i)
+        print i
+        print len(front_arc)
+        if i == len(front_arc):
+            rotate = True
+
+        if msg.ranges[0] < 0.3:
+            self.vel_cmd.linear.x = 0
+        self.pub.publish(self.vel_cmd)
 
     def __init__(self):
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
@@ -69,7 +98,7 @@ class Tasks:
             self.rate.sleep()
 
 if __name__ == '__main__':
-    publisher_instance = Tasks()
+    publisher_instance = Task1()
     try:
         publisher_instance.main_loop()
     except rospy.ROSInterruptException:
