@@ -3,6 +3,7 @@
 # Import the core Python modules for ROS and to implement ROS Actions:
 import rospy
 import actionlib
+import time
 
 # Import all the necessary ROS message types:
 from com2009_actions.msg import SearchFeedback, SearchResult, SearchAction
@@ -30,12 +31,14 @@ class SearchActionServer(object):
 
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
-        self.arc_angles = np.arange(-20, 21)
+        self.arc_angles = np.arange(-35, 36)
     
     def scan_callback(self, scan_data):
-        left_arc = scan_data.ranges[0:21]
-        right_arc = scan_data.ranges[-20:]
+        left_arc = scan_data.ranges[0:36]
+        right_arc = scan_data.ranges[-35:]
         front_arc = np.array(left_arc[::-1] + right_arc[::-1])
+        self.left_dis = left_arc
+        self.right_dis = right_arc
         self.min_distance = front_arc.min()
         self.object_angle = self.arc_angles[np.argmin(front_arc)]
     
@@ -66,14 +69,23 @@ class SearchActionServer(object):
         print("The robot will start to move now...")
                 
         #move forward
-        while self.min_distance > goal.approach_distance:           
+        while self.min_distance > goal.approach_distance:        
             # check if there has been a request to cancel the action mid-way through:
             if self.min_distance < goal.approach_distance + 0.1:
-                self.robot_controller.set_move_cmd(0.0, goal.fwd_velocity)    
-                self.robot_controller.publish()
+                if self.right_dis < self.left_dis:
+                    self.robot_controller.set_move_cmd(0.0, goal.fwd_velocity)    
+                    self.robot_controller.publish()
+                    time.sleep(5)
+                    print("Turning left")
+                else:
+                    self.robot_controller.set_move_cmd(0.0, -(goal.fwd_velocity))    
+                    self.robot_controller.publish()
+                    time.sleep(5)
+                    print("Turning right")
             else:
                 self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)    
                 self.robot_controller.publish()
+                print("moving forward")
            
             self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
             # populate the feedback message and publish it:
