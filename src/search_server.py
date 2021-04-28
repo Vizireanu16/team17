@@ -31,11 +31,11 @@ class SearchActionServer(object):
 
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
-        self.arc_angles = np.arange(-25, 26)
+        self.arc_angles = np.arange(-20, 21)
     
     def scan_callback(self, scan_data):
-        left_arc = scan_data.ranges[0:26]
-        right_arc = scan_data.ranges[-25:]
+        left_arc = scan_data.ranges[0:21]
+        right_arc = scan_data.ranges[-20:]
         front_arc = np.array(left_arc[::-1] + right_arc[::-1])
         self.left_dis = left_arc
         self.right_dis = right_arc
@@ -71,16 +71,17 @@ class SearchActionServer(object):
         while self.min_distance > goal.approach_distance:        
             # check if there has been a request to cancel the action mid-way through:
             while self.min_distance < goal.approach_distance + 0.1:
-                if self.right_dis < self.left_dis:                   
+                if self.right_dis < self.left_dis:
+                    self.robot_controller.set_move_cmd(0.0, -(2*goal.fwd_velocity))    
+                    self.robot_controller.publish()
+                    print("Turning right")
+                    time.sleep(4)                                        
+                else:
                     self.robot_controller.set_move_cmd(0.0, 2*goal.fwd_velocity)   
                     self.robot_controller.publish()
                     print("Turning left")
-                    time.sleep(5)
-                else:
-                    self.robot_controller.set_move_cmd(0.0, -2*(goal.fwd_velocity))    
-                    self.robot_controller.publish()
-                    print("Turning right")
-                    time.sleep(5)               
+                    time.sleep(4)
+                                  
             self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)    
             self.robot_controller.publish()
             print("moving forward")
