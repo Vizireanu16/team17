@@ -3,6 +3,7 @@ import rospy
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 import numpy as np
+import random
 
 class Task1:
 
@@ -80,43 +81,43 @@ class Task1:
 
         if i == len(front_arc):
             self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = 0.5
+            self.vel_cmd.angular.z = 1.82
             self.pub.publish(self.vel_cmd)
             print "a"
 
         elif r == len(right) and l < len(left):
              self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 0.5
+             self.vel_cmd.angular.z = 1.82
              self.pub.publish(self.vel_cmd)
              print "b"
 
         elif r < len(right) and l == len(left):
              self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = -0.5
+             self.vel_cmd.angular.z = -1.82
              self.pub.publish(self.vel_cmd)
              print "c"
 
         elif r == 0 and l < len(left) and l != 0:
              self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = -0.5
+             self.vel_cmd.angular.z = -1.82
              self.pub.publish(self.vel_cmd)
              print "d"
 
         elif r < len(right) and l == 0 and r != 0:
              self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 0.5
+             self.vel_cmd.angular.z = 1.82
              self.pub.publish(self.vel_cmd)
              print "e"
 
         elif r < len(right) and l < len(left) and r != 0 and l != 0:
              self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 0.5
+             self.vel_cmd.angular.z = 1.82
              self.pub.publish(self.vel_cmd)
              print "f"
 
         elif r < 5 and l < 5:
-             self.vel_cmd.linear.x = 0.1
-             self.vel_cmd.angular.z = 0
+             self.vel_cmd.linear.x = 0.26
+             self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
              self.pub.publish(self.vel_cmd)
              print "g"
         """
