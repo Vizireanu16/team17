@@ -100,8 +100,7 @@ class SearchActionServer(object):
             elif r < 5 and l < 5:
                 self.robot_controller.set_move_cmd(2*goal.fwd_velocity, random.uniform(-0.5, 0.5))    
                 self.robot_controller.publish()
-                print "g"
-                                
+                print "g
            
             self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
             # populate the feedback message and publish it:
