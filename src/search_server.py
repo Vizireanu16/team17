@@ -31,14 +31,14 @@ class SearchActionServer(object):
 
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
-        self.arc_angles = np.arange(-20, 21)
+        self.arc_angles = np.arange(-45, 45)
     
     def scan_callback(self, scan_data):
-        left_arc = scan_data.ranges[0:21]
-        right_arc = scan_data.ranges[-20:]
+        left_arc = scan_data.ranges[0:45]
+        right_arc = scan_data.ranges[-45:]    
         front_arc = np.array(left_arc[::-1] + right_arc[::-1])
-        self.left_dis = left_arc
-        self.right_dis = right_arc
+        self.left = left_arc
+        self.right = right_arc
         self.min_distance = front_arc.min()
         self.object_angle = self.arc_angles[np.argmin(front_arc)]
     
@@ -67,24 +67,41 @@ class SearchActionServer(object):
         self.posy0 = self.robot_odom.posy
 
         print("The robot will start to move now...")
+
+        self.min_distance
+        self.right
+        self.left
                 
-        while self.min_distance > goal.approach_distance:        
-            # check if there has been a request to cancel the action mid-way through:
-            while self.min_distance < goal.approach_distance + 0.1:
-                if self.right_dis < self.left_dis:
-                    self.robot_controller.set_move_cmd(0.0, -(2*goal.fwd_velocity))    
-                    self.robot_controller.publish()
-                    print("Turning right")
-                    time.sleep(4)                                        
-                else:
-                    self.robot_controller.set_move_cmd(0.0, 2*goal.fwd_velocity)   
-                    self.robot_controller.publish()
-                    print("Turning left")
-                    time.sleep(4)
-                                  
-            self.robot_controller.set_move_cmd(goal.fwd_velocity, 0.0)    
-            self.robot_controller.publish()
-            print("moving forward")
+        while self.min_distance > goal.approach_distance+0.1:      
+            if i == len(front_arc):
+                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                self.robot_controller.publish()
+                print "turn left"
+            elif r == len(right) and l < len(left):
+                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                self.robot_controller.publish()
+                print "turn left"
+            elif r < len(right) and l == len(left):
+                self.robot_controller.set_move_cmd(0.0, -(5*goal.fwd_velocity))    
+                self.robot_controller.publish()
+                print "turn right"
+            elif r == 0 and l < len(left) and l != 0:
+                self.robot_controller.set_move_cmd(0.0, -(5*goal.fwd_velocity))    
+                self.robot_controller.publish()
+                print "d"
+            elif r < len(right) and l == 0 and r != 0:
+                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                self.robot_controller.publish()
+                print "e"
+            elif r < len(right) and l < len(left) and r != 0 and l != 0:
+                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                self.robot_controller.publish()
+                print "f"
+            elif r < 5 and l < 5:
+                self.robot_controller.set_move_cmd(2*goal.fwd_velocity, random.uniform(-0.5, 0.5))    
+                self.robot_controller.publish()
+                print "g"
+                                
            
             self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
             # populate the feedback message and publish it:
