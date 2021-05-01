@@ -49,7 +49,7 @@ class action_client(object):
         self.client.send_goal(self.goal, feedback_cb=self.feedback_callback)
 
     def main(self):
-        self.send_goal(velocity = 0.1, approach = 0.4)
+        self.send_goal(velocity = 0.1, approach = 0.3)
         prempt = False
         while self.client.get_state() < 3:
             print("FEEDBACK: Currently travelled {:.3f} m, STATE: Current state code is {}".format(self.distance, self.client.get_state()))
