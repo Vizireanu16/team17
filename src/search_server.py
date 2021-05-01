@@ -69,51 +69,56 @@ class SearchActionServer(object):
 
         print("The robot will start to move now...")
                 
-        while self.min_distance > goal.approach_distance + 0.2:
-            i = 0
-            l = 0
-            r = 0
+        while self.min_distance > goal.approach_distance:
+            while self.min_distance < goal.approach_distance + 0.2:               
+                i = 0
+                l = 0
+                r = 0
 
-            for range in self.front_distance:
-                if range < 0.4:
-                    i = i + 1
+                for range in self.front_distance:
+                    if range < 0.4:
+                        i = i + 1
 
-            for range in self.left:
-                if range < 0.4:
-                    l = l + 1
+                for range in self.left:
+                    if range < 0.4:
+                        l = l + 1
 
-            for range in self.right:
-                if range < 0.4:
-                    r = r + 1    
+                for range in self.right:
+                    if range < 0.4:
+                        r = r + 1    
 
-            if i == len(self.front_distance):
-                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
-                self.robot_controller.publish()
-                print "turn left"
-            elif r == len(self.right) and l < len(self.left):
-                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
-                self.robot_controller.publish()
-                print "turn left"
-            elif r < len(self.right) and l == len(self.left):
-                self.robot_controller.set_move_cmd(0.0, -(5*goal.fwd_velocity))    
-                self.robot_controller.publish()
-                print "turn right"
-            elif r == 0 and l < len(self.left) and l != 0:
-                self.robot_controller.set_move_cmd(0.0, -(5*goal.fwd_velocity))    
-                self.robot_controller.publish()
-                print "d"
-            elif r < len(self.right) and l == 0 and r != 0:
-                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
-                self.robot_controller.publish()
-                print "e"
-            elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
-                self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
-                self.robot_controller.publish()
-                print "f"
-            elif r < 5 and l < 5:
-                self.robot_controller.set_move_cmd(2*goal.fwd_velocity, 0.0)    
-                self.robot_controller.publish()
-                print "g"
+                if i == len(self.front_distance):
+                    self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                    self.robot_controller.publish()
+                    print "turn left"
+                elif r == len(self.right) and l < len(self.left):
+                    self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                    self.robot_controller.publish()
+                    print "turn left"
+                elif r < len(self.right) and l == len(self.left):
+                    self.robot_controller.set_move_cmd(0.0, -(5*goal.fwd_velocity))    
+                    self.robot_controller.publish()
+                    print "turn right"
+                elif r == 0 and l < len(self.left) and l != 0:
+                    self.robot_controller.set_move_cmd(0.0, -(5*goal.fwd_velocity))    
+                    self.robot_controller.publish()
+                    print "d"
+                elif r < len(self.right) and l == 0 and r != 0:
+                    self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                    self.robot_controller.publish()
+                    print "e"
+                elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
+                    self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
+                    self.robot_controller.publish()
+                    print "f"
+                elif r < 5 and l < 5:
+                    self.robot_controller.set_move_cmd(2*goal.fwd_velocity, 0.0)    
+                    self.robot_controller.publish()
+                    print "moving forward"
+            
+            self.robot_controller.set_move_cmd(2*goal.fwd_velocity, 0.0)    
+            self.robot_controller.publish()
+            print "moving forward"
            
             self.distance = sqrt(pow(self.posx0 - self.robot_odom.posx, 2) + pow(self.posy0 - self.robot_odom.posy, 2))
             # populate the feedback message and publish it:
