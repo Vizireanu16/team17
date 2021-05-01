@@ -72,7 +72,22 @@ class SearchActionServer(object):
         self.right
         self.left
                 
-        while self.min_distance > goal.approach_distance+0.1:      
+        while self.min_distance < goal.approach_distance + 0.1:
+            i = 0
+            l = 0
+            r = 0
+
+            for range in front_arc:
+                if range < 0.4:
+                    i = i + 1
+
+            for range in left:
+                if range < 0.4:
+                    l = l + 1
+
+            for range in right:
+                if range < 0.4:
+                    r = r + 1      
             if i == len(front_arc):
                 self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
                 self.robot_controller.publish()
