@@ -1,167 +1,130 @@
-#!/usr/bin/env python
+#! /usr/bin/python
 import rospy
-from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import Twist
+import cv2
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
+from move_tb3 import MoveTB3
 import numpy as np
-import random
 
-class Task1:
-
-    """
-    def callback(self, msg):
-        self.move = Twist()
-
-        left_arc = msg.ranges[0:10]
-        right_arc = msg.ranges[-10:]
-        front_arc = np.array(left_arc + right_arc)
-        front_range = front_arc.min()
-
-
-        while front_range > 0.01:
-            left_arc = msg.ranges[0:10]
-            right_arc = msg.ranges[-10:]
-            print (left_arc)
-            print (right_arc)
-            front_arc = np.array(left_arc + right_arc)
-            front_range = front_arc.min()
-            print front_range
-            self.move.linear.x = 0.1
-            print self.move.linear.x
-
-        self.move.linear.x = 0
-        self.pub.publish(self.move)
-
-
-        #rospy.init_node("check_obstacle")
-        #sub = rospy.Subscriber("/scan", LaserScan, callback)
-        #pub = rospy.Publisher("/cmd_vel", Twist)
-        #move = Twist()
-        rospy.spin()
-        """
-    def callback(self, msg):
-        print ("ranges[0] " + str(msg.ranges[0]))
-        #self.vel_cmd.linear.x = 0.1
-        left_arc = msg.ranges[0:45]
-        right_arc = msg.ranges[-45:]
-        left = np.array(left_arc)
-        right = np.array(right_arc)
-        front_arc = np.array(left_arc + right_arc)
-
-        #rotate = False
-        i = 0
-        l = 0
-        r = 0
-
-        for range in front_arc:
-            if range < 0.4:
-                i = i + 1
-
-        for range in left:
-            if range < 0.4:
-                l = l + 1
-
-        for range in right:
-            if range < 0.4:
-                r = r + 1
-
-        #print front_arc
-        #print ("ranges: ",front_arc)
-        #print ("i: ", i)
-        print ("i " + str(i))
-        print ("front_arc " + str(len(front_arc)))
-
-        print ("l " + str(l))
-        print ("left " + str(len(left)))
-
-        print ("r " + str(r))
-        print ("right " + str(len(right)))
-
-        #if i == len(front_arc):
-        #    rotate = True
-
-        if i == len(front_arc):
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = 1.82
-            self.pub.publish(self.vel_cmd)
-            print "a"
-
-        elif r == len(right) and l < len(left):
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 1.82
-             self.pub.publish(self.vel_cmd)
-             print "b"
-
-        elif r < len(right) and l == len(left):
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = -1.82
-             self.pub.publish(self.vel_cmd)
-             print "c"
-
-        elif r == 0 and l < len(left) and l != 0:
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = -1.82
-             self.pub.publish(self.vel_cmd)
-             print "d"
-
-        elif r < len(right) and l == 0 and r != 0:
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 1.82
-             self.pub.publish(self.vel_cmd)
-             print "e"
-
-        elif r < len(right) and l < len(left) and r != 0 and l != 0:
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 1.82
-             self.pub.publish(self.vel_cmd)
-             print "f"
-
-        elif r < 5 and l < 5:
-             self.vel_cmd.linear.x = 0.26
-             self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
-             self.pub.publish(self.vel_cmd)
-             print "g"
-        """
-        elif msg.ranges[0] < 0.3:
-            self.vel_cmd.linear.x = 0
-            self.pub.publish(self.vel_cmd)
-        """
+class colour_search(object):
 
     def __init__(self):
-        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
-        self.sub = rospy.Subscriber("/scan", LaserScan, self.callback)
-        rospy.init_node('publisher_node', anonymous=True)
-        self.rate = rospy.Rate(10) # hz
-        self.vel_cmd = Twist()
-        self.vel_cmd.linear.x = 0.1 # m/s
-        print ("init")
+        rospy.init_node('turn_and_face')
+        self.base_image_path = '/home/student/myrosdata/week6_images'
+        self.camera_subscriber = rospy.Subscriber("/camera/rgb/image_raw",
+            Image, self.camera_callback)
+        self.cvbridge_interface = CvBridge()
 
-        self.pub.publish(self.vel_cmd)
+        self.robot_controller = MoveTB3()
+        self.turn_vel_fast = -0.5
+        self.turn_vel_slow = -0.1
+        self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+
+        self.move_rate = '' # fast, slow or stop
+        self.stop_counter = 0
 
         self.ctrl_c = False
-        rospy.on_shutdown(self.shutdownhook)
+        rospy.on_shutdown(self.shutdown_ops)
 
-        rospy.loginfo("publisher node is active...")
+        self.rate = rospy.Rate(5)
+        
+        self.m00 = 0
+        self.m00_min = 100000
 
+        self.lower = [(115, 224, 100), (0, 185, 100), (25, 150, 100), (75, 150, 100)]
+        self.upper = [(130, 255, 255), (10, 255, 255), (70, 255, 255), (100, 255, 255)]
 
+        self.lowerBlue = (115, 224, 100)
+        self.upperBlue = (130, 255, 255)
 
-    def shutdownhook(self):
-        self.shutdown_function()
+        self.lowerRed = (0, 185, 100)
+        self.upperRed = (10, 255, 255)
+
+        self.lowerGreen = (25, 150, 100)
+        self.upperGreen = (70, 255, 255)
+
+        self.lowerTorquoise = (75, 150, 100)
+        self.upperTorquoise = (100, 255, 255)
+
+    def shutdown_ops(self):
+        self.robot_controller.stop()
+        cv2.destroyAllWindows()
         self.ctrl_c = True
+    
+    def camera_callback(self, img_data):
+        try:
+            cv_img = self.cvbridge_interface.imgmsg_to_cv2(img_data, desired_encoding="bgr8")
+        except CvBridgeError as e:
+            print(e)
+        
+        height, width, channels = cv_img.shape
+        crop_width = width - 800
+        crop_height = 400
+        crop_x = int((width/2) - (crop_width/2))
+        crop_y = int((height/2) - (crop_height/2))
 
-    def shutdown_function(self):
-        print("stopping publisher node at: {}".format(rospy.get_time()))
-        self.vel_cmd.linear.x = 0.0 # m/s
-        self.pub.publish(self.vel_cmd)
+        crop_img = cv_img[crop_y:crop_y+crop_height, crop_x:crop_x+crop_width]
+        hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
 
+        maskBLUE = cv2.inRange(hsv_img, self.lowerBlue, self.upperBlue)
+            
 
-    def main_loop(self):
+        m = cv2.moments(maskBLUE)
+                  
+            
+        self.m00 = m['m00']
+        self.cy = m['m10'] / (m['m00'] + 1e-5)
+
+        if self.m00 > self.m00_min:
+            cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
+        
+        cv2.imshow('cropped image', crop_img)
+        cv2.waitKey(1)
+
+    def main(self):
         while not self.ctrl_c:
-            self.pub.publish(self.vel_cmd)
-            self.rate.sleep()
+            if self.stop_counter > 0:
+                self.stop_counter -= 1
 
+            if self.m00 > self.m00_min:
+                # blob detected
+                if self.cy >= 560-100 and self.cy <= 560+100:
+                    if self.move_rate == 'slow':
+                        self.move_rate = 'stop'
+                        self.stop_counter = 20
+                else:
+                    self.move_rate = 'slow'
+            else:
+                self.move_rate = 'fast'
+                
+            if self.move_rate == 'fast':
+                print("MOVING FAST: I can't see anything at the moment (blob size = {:.0f}), scanning the area...".format(self.m00))
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+            elif self.move_rate == 'slow' and self.lowerRed == (0, 185, 100) and self.upperRed == (10, 255, 255):
+                print("RED")
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+            elif self.move_rate == 'slow' and self.lowerBlue == (115, 224, 100) and self.upperBlue == (130, 255, 255):
+                print("BLUE")
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+            elif self.move_rate == 'slow' and self.lowerGreen ==  (25, 150, 100) and self.upperGreen == (70, 255, 255):
+                print(" GREEN ")
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+            elif self.move_rate == 'stop' and self.stop_counter > 0:
+                print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels... Counting down: {}".format(self.cy, self.stop_counter))
+                self.robot_controller.set_move_cmd(0.0, 0.0)
+            else:
+                print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+
+        #self.lower = [(115, 224, 100), (0, 185, 100), (25, 150, 100), (75, 150, 100)]
+        #self.upper = [(130, 255, 255), (10, 255, 255), (70, 255, 255), (100, 255, 255)]
+           
+            self.robot_controller.publish()
+            self.rate.sleep()
+            
 if __name__ == '__main__':
-    publisher_instance = Task1()
+    search_ob = colour_search()
     try:
-        publisher_instance.main_loop()
+        search_ob.main()
     except rospy.ROSInterruptException:
         pass
