@@ -49,11 +49,11 @@ class colour_search(object):
         self.upperbound = []
 
         self.color_boundaries = {
-            "red":    ([0, 200, 100], [8, 255, 255]),
+            "red":    ([-1.8, 217, 100], [3.3, 255, 255]),
             "blue":   ([115, 224, 100],   [130, 255, 255]),
             "yellow": ([28, 180, 100], [32, 255, 255]),
-            "green":   ([40, 50, 100], [65, 255, 255]),
-            "lightblue":   ([75, 50, 100], [90, 255, 255]),
+            "green":   ([58, 50, 100], [61, 256, 255]),
+            "Turquoise":   ([75, 50, 100], [91, 254, 255]),
             "purple":   ([145, 185, 100], [150, 250, 255])
         }
 
@@ -78,7 +78,7 @@ class colour_search(object):
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
         self.hsv_img = hsv_img
         
-        if len(self.lowerbound) > 0 and len(self.upperbound) > 0:
+        if len(self.lowerbound) != 0 and len(self.upperbound) != 0:
             self.mask = cv2.inRange(hsv_img, self.lowerbound, self.upperbound)
 
         m = cv2.moments(self.mask)
@@ -121,7 +121,7 @@ class colour_search(object):
 
 
     def find_pillar(self):
-        self.robot_controller.set_move_cmd(0.33, 0.0)    
+        self.robot_controller.set_move_cmd(0.35, 0.0)    
         self.robot_controller.publish()
         print "move forward"
         time.sleep(3)
@@ -148,18 +148,14 @@ class colour_search(object):
             else:
                 self.move_rate = 'fast'                
             if self.move_rate == 'fast':
-                print("MOVING FAST: I can't see anything at the moment, scanning the area...")
                 self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
             elif self.move_rate == 'slow':
-                print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
                 self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
             elif self.move_rate == 'stop':
-                print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels".format(self.cy))
                 self.robot_controller.stop()
                 print("SEARCH COMPLETE: The robot is now facing the target pillar.")
                 break
             else:
-                print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
                 self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
 
             self.robot_controller.publish()
