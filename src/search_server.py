@@ -102,19 +102,15 @@ class SearchActionServer(object):
                 elif r == 0 and l < len(self.left) and l != 0:
                     self.robot_controller.set_move_cmd(0.0, -(5*goal.fwd_velocity))    
                     self.robot_controller.publish()
-                    print "d"
+                    print "turn right"
                 elif r < len(self.right) and l == 0 and r != 0:
                     self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
                     self.robot_controller.publish()
-                    print "e"
+                    print "turn left"
                 elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
                     self.robot_controller.set_move_cmd(0.0, 5*goal.fwd_velocity)    
                     self.robot_controller.publish()
-                    print "f"
-                elif r < 5 and l < 5:
-                    self.robot_controller.set_move_cmd(2*goal.fwd_velocity, 0.0)    
-                    self.robot_controller.publish()
-                    print "moving forward"
+                    print "turn left"
             
             self.robot_controller.set_move_cmd(2*goal.fwd_velocity, 0.0)    
             self.robot_controller.publish()
