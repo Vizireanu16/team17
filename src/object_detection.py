@@ -28,8 +28,6 @@ class colour_search(object):
             Image, self.camera_callback)
         self.cvbridge_interface = CvBridge()
 
-        self.status = 0
-
         self.robot_controller = MoveTB3()
         self.turn_vel_fast = -0.5
         self.turn_vel_slow = -0.1
@@ -108,18 +106,17 @@ class colour_search(object):
             
     def turn_180(self):
         time.sleep(1)
-        self.robot_controller.set_move_cmd(0.0, 0.55)    
+        self.robot_controller.set_move_cmd(0.0, 0.33)    
         self.robot_controller.publish()
         print "turn left"
-        time.sleep(3)
+        time.sleep(6)
 
     def turn_back(self):
-        self.robot_controller.set_move_cmd(0.0, -0.54)    
+        self.robot_controller.set_move_cmd(0.0, -0.32)    
         self.robot_controller.publish()
         print "turn right"
-        time.sleep(3)
-        self.robot_controller.set_move_cmd(0.0, 0.0)    
-        self.robot_controller.publish()
+        time.sleep(6)
+        self.robot_controller.stop()   
         print "stop"
 
 
@@ -132,51 +129,41 @@ class colour_search(object):
         self.robot_controller.publish()
         print "turn left"
         time.sleep(7)
-        self.robot_controller.set_move_cmd(0.0, 0.0)    
-        self.robot_controller.publish()
+        self.robot_controller.stop()    
         print "stop"
 
 
     def main(self):
+        self.turn_180()      #turn back to check target colour
+        self.find_colour()   #check target colour
+        self.turn_back()     #turn back to the front
+        self.find_pillar()   #move forward
         while not self.ctrl_c:
-            if self.status == 0:
-                self.turn_180()
-                self.status+=1
-            elif self.status == 1:
-                self.find_colour()
-                self.status+=1
-            elif self.status == 2:
-                self.turn_back()
-                self.status+=1
-            elif self.status == 3:
-                self.find_pillar()
-                self.status+=1
-            elif self.status == 4:
-                if self.m00 > self.m00_min:
-                    if self.cy >= 560-100 and self.cy <= 560+100:
-                        if self.move_rate == 'slow':
-                            self.move_rate = 'stop'
-                    else:
-                        self.move_rate = 'slow'
+            if self.m00 > self.m00_min:
+                if self.cy >= 560-100 and self.cy <= 560+100:
+                    if self.move_rate == 'slow':
+                        self.move_rate = 'stop'
                 else:
-                    self.move_rate = 'fast'                
-                if self.move_rate == 'fast':
-                    print("MOVING FAST: I can't see anything at the moment, scanning the area...")
-                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
-                elif self.move_rate == 'slow':
-                    print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
-                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
-                elif self.move_rate == 'stop':
-                    print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels".format(self.cy))
-                    self.robot_controller.stop()
-                    print("SEARCH COMPLETE: The robot is now facing the target pillar.")
-                    break
-                else:
-                    print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
-                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
-            
-                self.robot_controller.publish()
-                self.rate.sleep()
+                    self.move_rate = 'slow'
+            else:
+                self.move_rate = 'fast'                
+            if self.move_rate == 'fast':
+                print("MOVING FAST: I can't see anything at the moment, scanning the area...")
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+            elif self.move_rate == 'slow':
+                print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+            elif self.move_rate == 'stop':
+                print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels".format(self.cy))
+                self.robot_controller.stop()
+                print("SEARCH COMPLETE: The robot is now facing the target pillar.")
+                break
+            else:
+                print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+
+            self.robot_controller.publish()
+            self.rate.sleep()
 
             
             
