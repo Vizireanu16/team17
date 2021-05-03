@@ -2,7 +2,6 @@
 
 # Import the core Python modules for ROS and to implement ROS Actions:
 import rospy
-import time
 
 # Import some image processing modules:
 import cv2
@@ -38,10 +37,7 @@ class colour_search(object):
         self.rate = rospy.Rate(5)
         
         self.m00 = 0
-        self.m00_min = 100000
-
-        self.lower = [(115, 224, 100), (0, 185, 100), (25, 150, 100), (75, 150, 100)]
-        self.upper = [(130, 255, 255), (10, 255, 255), (70, 255, 255), (100, 255, 255)]
+        self.m00_min = 10000
 
     def shutdown_ops(self):
         self.robot_controller.stop()
@@ -63,43 +59,96 @@ class colour_search(object):
         crop_img = cv_img[crop_y:crop_y+crop_height, crop_x:crop_x+crop_width]
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
 
-        colours = ['Blue','Red','Green','Turquoise']
+        darkblue_lower = (115, 224, 100)
+        darkblue_upper = (130, 255, 255)
+        
+        lightblue_lower = (87, 130, 100)
+        lightblue_upper = (91, 254, 255)
 
-        for i in range(4):
-            if i == 0:
-                mask = cv2.inRange(hsv_img, self.lower[i], self.upper[i])
-            else:
-                mask = mask + cv2.inRange(hsv_img, self.lower[i], self.upper[i])
+        green_lower = (58, 185, 100)
+        green_upper = (61, 256, 255)
 
-        m = cv2.moments(mask)
-            
-        self.m00 = m['m00']
-        self.cy = m['m10'] / (m['m00'] + 1e-5)
-
+        red_lower = (-1.8, 217, 100)
+        red_upper = (3.3, 255, 255)
+        
+        """Dark blue"""
+        mask_db = cv2.inRange(hsv_img, darkblue_lower, darkblue_upper)
+        res_db = cv2.bitwise_and(crop_img, crop_img, mask = mask_db)
+        m_db = cv2.moments(mask_db)
+        self.m00 = m_db['m00']
+        self.cy = m_db['m10'] / (m_db['m00'] + 1e-5)
         if self.m00 > self.m00_min:
             cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
-        
-        cv2.imshow('cropped image', crop_img)
-        cv2.waitKey(1)
-
-    def check_colour(self):
-        time.sleep(3)
-        self.robot_controller.set_move_cmd(0.0, -0.5)
-        self.robot_controller.publish()
-        print("turn right")
-        time.sleep(3)
-        self.robot_controller.set_move_cmd(0.0, 0.5)
-        self.robot_controller.publish()
-        print("turn left")
-        time.sleep(3)
-        self.robot_controller.set_move_cmd(0.0, 0.0)
-        self.robot_controller.publish()
-        print("stop")
+            cv2.imshow('cropped image', crop_img)
+            cv2.waitKey(5)
+            print ("Dark blue")
+        """light blue"""
+        mask_lb = cv2.inRange(hsv_img, lightblue_lower, lightblue_upper)
+        res_lb = cv2.bitwise_and(crop_img, crop_img, mask = mask_lb)
+        m_lb = cv2.moments(mask_lb)
+        self.m00 = m_lb['m00']
+        self.cy = m_lb['m10'] / (m_lb['m00'] + 1e-5)
+        if self.m00 > self.m00_min:
+            cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
+            cv2.imshow('cropped image', crop_img)
+            cv2.waitKey(5)
+            print ("light blue")
+        """green"""
+        mask_g = cv2.inRange(hsv_img, green_lower, green_upper)
+        res_g = cv2.bitwise_and(crop_img, crop_img, mask = mask_g)
+        m_g = cv2.moments(mask_g)
+        self.m00 = m_g['m00']
+        self.cy = m_g['m10'] / (m_g['m00'] + 1e-5)
+        if self.m00 > self.m00_min:
+            cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
+            cv2.imshow('cropped image', crop_img)
+            cv2.waitKey(5)
+            print ("green")
+        """red"""
+        mask_r = cv2.inRange(hsv_img, red_lower, red_upper)
+        res_r = cv2.bitwise_and(crop_img, crop_img, mask = mask_r)
+        m_r = cv2.moments(mask_r)
+        self.m00 = m_r['m00']
+        self.cy = m_r['m10'] / (m_r['m00'] + 1e-5)
+        if self.m00 > self.m00_min:
+            cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
+            cv2.imshow('cropped image', crop_img)
+            cv2.waitKey(5)
+            print ("red")
+            
 
     def main(self):
-        self.check_colour()
+        while not self.ctrl_c:
+            if self.stop_counter > 0:
+                self.stop_counter -= 1
 
-
+            if self.m00 > self.m00_min:
+                # blob detected
+                if self.cy >= 560-100 and self.cy <= 560+100:
+                    if self.move_rate == 'slow':
+                        self.move_rate = 'stop'
+                        self.stop_counter = 30
+                else:
+                    self.move_rate = 'slow'
+            else:
+                self.move_rate = 'fast'
+                
+            if self.move_rate == 'fast':
+                #print("MOVING FAST: I can't see anything at the moment, scanning the area...")
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+            elif self.move_rate == 'slow':
+                #print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+            elif self.move_rate == 'stop' and self.stop_counter > 0:
+                #print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels... Counting down: {}".format(self.cy, self.stop_counter))
+                self.robot_controller.set_move_cmd(0.0, 0.0)
+            else:
+                #print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+            
+            self.robot_controller.publish()
+            self.rate.sleep()
+            
 if __name__ == '__main__':
     search_ob = colour_search()
     try:
