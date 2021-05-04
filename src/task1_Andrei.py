@@ -38,31 +38,65 @@ class Task1:
         #move = Twist()
         rospy.spin()
         """
+
+
+    def __init__(self):
+        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        rospy.init_node('publisher_node', anonymous=True)
+        self.rate = rospy.Rate(10) # hz
+        self.vel_cmd = Twist()
+        self.vel_cmd.linear.x = 0.1 # m/s
+        print ("init")
+
+        self.pub.publish(self.vel_cmd)
+
+        self.ctrl_c = False
+        rospy.on_shutdown(self.shutdownhook)
+
+        rospy.loginfo("publisher node is active...")
+
+        self.sub = rospy.Subscriber("/scan", LaserScan, self.callback)
+
+
     def callback(self, msg):
         print ("ranges[0] " + str(msg.ranges[0]))
-        #self.vel_cmd.linear.x = 0.1
-        left_arc = msg.ranges[0:45]
-        right_arc = msg.ranges[-45:]
+        self.vel_cmd = Twist()
+
+        left_arc = msg.ranges[0:30]
+        right_arc = msg.ranges[-30:]
+        bottom_left = msg.ranges[135:180]
+        bottom_right = msg.ranges[-180:135]
         left = np.array(left_arc)
         right = np.array(right_arc)
+        bleft = np.array(bottom_left)
+        bright = np.array(bottom_right)
         front_arc = np.array(left_arc + right_arc)
 
-        #rotate = False
         i = 0
         l = 0
         r = 0
+        bl = 0
+        br = 0
 
         for range in front_arc:
-            if range < 0.4:
+            if range < 0.5:
                 i = i + 1
 
         for range in left:
-            if range < 0.4:
+            if range < 0.5:
                 l = l + 1
 
         for range in right:
-            if range < 0.4:
+            if range < 0.5:
                 r = r + 1
+
+        for range in bleft:
+            if range < 0.4:
+                bl = bl + 1
+
+        for range in bright:
+            if range < 0.4:
+                br = br + 1
 
         #print front_arc
         #print ("ranges: ",front_arc)
@@ -109,38 +143,32 @@ class Task1:
              self.pub.publish(self.vel_cmd)
              print "e"
 
+        elif r < 5 and l < 5:
+             self.vel_cmd.linear.x = 0.26
+             self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
+             self.pub.publish(self.vel_cmd)
+             print "g"
+
         elif r < len(right) and l < len(left) and r != 0 and l != 0:
              self.vel_cmd.linear.x = 0
              self.vel_cmd.angular.z = 1.82
              self.pub.publish(self.vel_cmd)
              print "f"
 
-        elif r < 5 and l < 5:
-             self.vel_cmd.linear.x = 0.26
-             self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
-             self.pub.publish(self.vel_cmd)
-             print "g"
+
+
+        """
+        if bl > 10 or br > 10:
+            self.vel_cmd.linear.x = 0.1
+            self.vel_cmd.angular.z = 0
+            self.pub.publish(self.vel_cmd)
+        """
+
         """
         elif msg.ranges[0] < 0.3:
             self.vel_cmd.linear.x = 0
             self.pub.publish(self.vel_cmd)
         """
-
-    def __init__(self):
-        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
-        self.sub = rospy.Subscriber("/scan", LaserScan, self.callback)
-        rospy.init_node('publisher_node', anonymous=True)
-        self.rate = rospy.Rate(10) # hz
-        self.vel_cmd = Twist()
-        self.vel_cmd.linear.x = 0.1 # m/s
-        print ("init")
-
-        self.pub.publish(self.vel_cmd)
-
-        self.ctrl_c = False
-        rospy.on_shutdown(self.shutdownhook)
-
-        rospy.loginfo("publisher node is active...")
 
 
 
@@ -151,6 +179,7 @@ class Task1:
     def shutdown_function(self):
         print("stopping publisher node at: {}".format(rospy.get_time()))
         self.vel_cmd.linear.x = 0.0 # m/s
+        self.vel_cmd.angular.z = 0.0
         self.pub.publish(self.vel_cmd)
 
 
