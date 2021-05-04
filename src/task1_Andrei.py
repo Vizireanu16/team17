@@ -4,8 +4,12 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 import numpy as np
 import random
+import time
 
 class Task1:
+
+    global counter
+    counter = 0
 
     """
     def callback(self, msg):
@@ -39,6 +43,17 @@ class Task1:
         rospy.spin()
         """
 
+    """
+    stopped = []
+    threading.Timer(5, stopped.append, args=[True]).start()
+    while not stopped:
+        print("Cevaaaaaa")
+        # continue computations
+    """
+
+    #compute_something(stopped)
+
+
 
     def __init__(self):
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
@@ -55,10 +70,13 @@ class Task1:
 
         rospy.loginfo("publisher node is active...")
 
+
         self.sub = rospy.Subscriber("/scan", LaserScan, self.callback)
 
 
     def callback(self, msg):
+        global counter
+
         print ("ranges[0] " + str(msg.ranges[0]))
         self.vel_cmd = Twist()
 
@@ -113,47 +131,66 @@ class Task1:
         #if i == len(front_arc):
         #    rotate = True
 
-        if i == len(front_arc):
+
+
+        if i == len(front_arc) and counter < 6:
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = 1.82
             self.pub.publish(self.vel_cmd)
+            counter = 0
             print "a"
 
-        elif r == len(right) and l < len(left):
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 1.82
-             self.pub.publish(self.vel_cmd)
-             print "b"
+        elif r == len(right) and l < len(left) and counter < 6:
+            self.vel_cmd.linear.x = 0
+            self.vel_cmd.angular.z = 1.82
+            self.pub.publish(self.vel_cmd)
+            counter = 0
+            print "b"
 
-        elif r < len(right) and l == len(left):
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = -1.82
-             self.pub.publish(self.vel_cmd)
-             print "c"
+        elif r < len(right) and l == len(left) and counter < 6:
+            self.vel_cmd.linear.x = 0
+            self.vel_cmd.angular.z = -1.82
+            self.pub.publish(self.vel_cmd)
+            counter = counter + 1
+            print "c"
 
-        elif r == 0 and l < len(left) and l != 0:
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = -1.82
-             self.pub.publish(self.vel_cmd)
-             print "d"
+        elif r == 0 and l < len(left) and l != 0 and counter < 6:
+            self.vel_cmd.linear.x = 0
+            self.vel_cmd.angular.z = -1.82
+            self.pub.publish(self.vel_cmd)
+            counter = 0
+            print "d"
 
-        elif r < len(right) and l == 0 and r != 0:
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 1.82
-             self.pub.publish(self.vel_cmd)
-             print "e"
+        elif r < len(right) and l == 0 and r != 0 and counter < 6:
+            self.vel_cmd.linear.x = 0
+            self.vel_cmd.angular.z = 1.82
+            self.pub.publish(self.vel_cmd)
+            counter  = 0
+            print "e"
 
-        elif r < 5 and l < 5:
-             self.vel_cmd.linear.x = 0.26
-             self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
-             self.pub.publish(self.vel_cmd)
-             print "g"
+        elif r < 5 and l < 5 and counter < 6:
+            self.vel_cmd.linear.x = 0.26
+            self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
+            self.pub.publish(self.vel_cmd)
+            counter = 0
+            print "g"
 
-        elif r < len(right) and l < len(left) and r != 0 and l != 0:
-             self.vel_cmd.linear.x = 0
-             self.vel_cmd.angular.z = 1.82
-             self.pub.publish(self.vel_cmd)
-             print "f"
+        elif r < len(right) and l < len(left) and r != 0 and l != 0 and counter < 6:
+            self.vel_cmd.linear.x = 0
+            self.vel_cmd.angular.z = 1.82
+            self.pub.publish(self.vel_cmd)
+            counter = counter + 1
+            print "f"
+
+        if counter > 5:
+            counter = 0
+            self.vel_cmd.linear.x = 0
+            self.vel_cmd.angular.z = 1.82
+            self.pub.publish(self.vel_cmd)
+            time.sleep(2)
+
+
+        print("counter = " + str(counter))
 
 
 
