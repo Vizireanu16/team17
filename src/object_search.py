@@ -54,7 +54,7 @@ class colour_search(object):
             "blue":   ([115, 224, 100],   [130, 255, 255]),
             "yellow": ([28, 180, 100], [32, 255, 255]),
             "green":   ([58, 50, 100], [61, 256, 255]),
-            "Turquoise":   ([75, 50, 100], [91, 254, 255]),
+            "Turquoise":   ([75, 150, 100], [100, 255, 255]),
             "purple":   ([145, 185, 100], [150, 250, 255])
         }
 
@@ -105,10 +105,7 @@ class colour_search(object):
         if self.m00 > self.m00_min:
             cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
             cv2.imshow('cropped image', crop_img)
-            cv2.waitKey(5)
-
-
-        
+            cv2.waitKey(5)      
         
     def find_colour(self):
         for color_name, (lower, upper) in self.color_boundaries.items():
@@ -151,6 +148,29 @@ class colour_search(object):
         self.leave_spawn()   #move forward
         while not self.ctrl_c:
             while self.min_distance > 0.3:
+                if self.m00 > self.m00_min:
+                    if self.cy >= 560-100 and self.cy <= 560+100:
+                        if self.move_rate == 'slow':
+                            self.move_rate = 'stop'
+                    else:
+                        self.move_rate = 'slow'
+                else:
+                    self.move_rate = 'fast'                
+                if self.move_rate == 'fast':
+                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+                    self.robot_controller.publish()
+                elif self.move_rate == 'slow':
+                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                    self.robot_controller.publish()
+                elif self.move_rate == 'stop':
+                    self.robot_controller.stop()
+                    self.robot_controller.publish()
+                    print("SEARCH COMPLETE: The robot is now facing the target pillar.")
+                    break
+                else:
+                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                    self.robot_controller.publish()
+
                 while self.min_distance < 0.5:
                     i = 0
                     l = 0
