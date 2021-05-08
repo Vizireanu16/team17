@@ -1,0 +1,4 @@
+<launch>
+    <node name="object_search" pkg="team17" type="object_search.py" output="screen">
+    </node>
+</launch>
