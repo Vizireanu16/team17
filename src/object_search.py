@@ -78,7 +78,7 @@ class colour_search(object):
         self.front_distance = front_arc
         self.min_distance = front_arc.min()
         self.object_angle = self.arc_angles[np.argmin(front_arc)]
-        
+
     def camera_callback(self, img_data):
         try:
             cv_img = self.cvbridge_interface.imgmsg_to_cv2(img_data, desired_encoding="bgr8")
@@ -137,45 +137,66 @@ class colour_search(object):
         print "stop"
 
 
-    def find_pillar(self):
-        self.robot_controller.set_move_cmd(0.35, 0.0)    
+    def leave_spawn(self):
+        self.robot_controller.set_move_cmd(0.2, 0.0)    
         self.robot_controller.publish()
-        print "move forward"
-        time.sleep(3)
-        self.robot_controller.set_move_cmd(0.0, 0.4)    
-        self.robot_controller.publish()
-        print "turn left"
-        time.sleep(7)
-        self.robot_controller.stop()    
-        print "stop"
+        print "leaving spawn"
+        time.sleep(2)       
 
 
     def main(self):
         self.turn_180()      #turn back to check target colour
         self.find_colour()   #check target colour
         self.turn_back()     #turn back to the front
-        self.find_pillar()   #move forward
-        while not self.ctrl_c:           
-            if self.m00 > self.m00_min:
-                if self.cy >= 560-100 and self.cy <= 560+100:
-                    if self.move_rate == 'slow':
-                        self.move_rate = 'stop'
-                else:
-                    self.move_rate = 'slow'
-            else:
-                self.move_rate = 'fast'                
-            if self.move_rate == 'fast':
-                self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
-            elif self.move_rate == 'slow':
-                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
-            elif self.move_rate == 'stop':
-                self.robot_controller.stop()
-                print("SEARCH COMPLETE: The robot is now facing the target pillar.")
-                break
-            else:
-                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+        self.leave_spawn()   #move forward
+        while not self.ctrl_c:
+            while self.min_distance > 0.3:
+                while self.min_distance < 0.5:
+                    i = 0
+                    l = 0
+                    r = 0
 
-            self.robot_controller.publish()
+                    for range in self.front_distance:
+                        if range < 0.4:
+                            i = i + 1
+
+                    for range in self.left:
+                        if range < 0.4:
+                            l = l + 1
+
+                    for range in self.right:
+                        if range < 0.4:
+                            r = r + 1    
+
+                    if i == len(self.front_distance):
+                        self.robot_controller.set_move_cmd(0.0, 1.0)    
+                        self.robot_controller.publish()
+                        print "turn left"
+                    elif r == len(self.right) and l < len(self.left):
+                        self.robot_controller.set_move_cmd(0.0, 1.0)    
+                        self.robot_controller.publish()
+                        print "turn left"
+                    elif r < len(self.right) and l == len(self.left):
+                        self.robot_controller.set_move_cmd(0.0, -1.0)    
+                        self.robot_controller.publish()
+                        print "turn right"
+                    elif r == 0 and l < len(self.left) and l != 0:
+                        self.robot_controller.set_move_cmd(0.0, -1.0)    
+                        self.robot_controller.publish()
+                        print "turn right"
+                    elif r < len(self.right) and l == 0 and r != 0:
+                        self.robot_controller.set_move_cmd(0.0, 1.0)    
+                        self.robot_controller.publish()
+                        print "turn left"
+                    elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
+                        self.robot_controller.set_move_cmd(0.0, 1.0)    
+                        self.robot_controller.publish()
+                        print "turn left"            
+                             
+                self.robot_controller.set_move_cmd(0.2, 0.0)    
+                self.robot_controller.publish()
+                print "moving forward" 
+
             self.rate.sleep()
 
             
