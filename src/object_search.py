@@ -73,8 +73,8 @@ class colour_search(object):
     def scan_callback(self, scan_data):
         left_arc = scan_data.ranges[0:40]
         right_arc = scan_data.ranges[-40:]
-        close_left_arc = scan_data.ranges[0:10]
-        close_right_arc = scan_data.ranges[-10:]
+        close_left_arc = scan_data.ranges[0:7]
+        close_right_arc = scan_data.ranges[-7:]
         self.dead_front = scan_data.ranges[0]    
         front_arc = np.array(left_arc[::-1] + right_arc[::-1])
         close_front_arc = np.array(close_left_arc[::-1] + close_right_arc[::-1])
