@@ -39,10 +39,10 @@ class colour_search(object):
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
 
-        self.rate = rospy.Rate(5)
+        self.rate = rospy.Rate(5000)
         
         self.m00 = 0
-        self.m00_min = 10000
+        self.m00_min = 100000
 
         self.mask = np.zeros((1080,1920,1), np.uint8)
         self.hsv_img = np.zeros((1080,1920,3), np.uint8)
@@ -62,8 +62,8 @@ class colour_search(object):
             LaserScan, self.scan_callback)
 
         self.robot_odom = TB3Odometry()
-        self.arc_angles = np.arange(-45, 45)
-        self.goal_status = False
+        self.arc_angles = np.arange(-40, 40)
+        self.init_search = False
 
     def shutdown_ops(self):
         self.robot_controller.stop()
@@ -71,11 +71,16 @@ class colour_search(object):
         self.ctrl_c = True
     
     def scan_callback(self, scan_data):
-        left_arc = scan_data.ranges[0:45]
-        right_arc = scan_data.ranges[-45:]    
+        left_arc = scan_data.ranges[0:40]
+        right_arc = scan_data.ranges[-40:]
+        close_left_arc = scan_data.ranges[0:10]
+        close_right_arc = scan_data.ranges[-10:]
+        self.dead_front = scan_data.ranges[0]    
         front_arc = np.array(left_arc[::-1] + right_arc[::-1])
+        close_front_arc = np.array(close_left_arc[::-1] + close_right_arc[::-1])
         self.left = left_arc
         self.right = right_arc
+        self.close_front_distance = close_front_arc.min()
         self.front_distance = front_arc
         self.min_distance = front_arc.min()
         self.object_angle = self.arc_angles[np.argmin(front_arc)]
@@ -114,7 +119,7 @@ class colour_search(object):
             upper_bound = np.array(upper)
             mask = cv2.inRange(self.hsv_img, lower_bound, upper_bound)
             if mask.any():
-                print("SEARCH INITIATED: The target colour is {}".format (color_name))
+                print("SEARCH INITIATED: The target beacon colour is {}".format (color_name))
                 self.lowerbound = lower_bound
                 self.upperbound = upper_bound
 
@@ -135,51 +140,55 @@ class colour_search(object):
         print "stop"
 
     def leave_spawn(self):
-        self.robot_controller.set_move_cmd(0.2, 0.0)    
+        self.robot_controller.set_move_cmd(0.15, 0.0)    
         self.robot_controller.publish()
         print "leaving spawn"
-        time.sleep(2)
+        time.sleep(3)
 
     def avoid_object(self):
-        i = 0
-        l = 0
-        r = 0
+        while self.min_distance < 0.5: 
+            i = 0
+            l = 0
+            r = 0
+            for range in self.front_distance:
+                if range < 0.4:
+                    i = i + 1
 
-        for range in self.front_distance:
-            if range < 0.4:
-                i = i + 1
+            for range in self.left:
+                if range < 0.4:
+                    l = l + 1
 
-        for range in self.left:
-            if range < 0.4:
-                l = l + 1
-
-        for range in self.right:
-            if range < 0.4:
-                r = r + 1 
-        if i == len(self.front_distance):
-            self.robot_controller.set_move_cmd(0.0, 0.3)    
-            self.robot_controller.publish()
-            print "turn left-1"
-        elif r == len(self.right) and l < len(self.left):                   
-            self.robot_controller.set_move_cmd(0.0, 0.3)    
-            self.robot_controller.publish()
-            print "turn left-2"                             
-        elif r < len(self.right) and l == len(self.left):
-            self.robot_controller.set_move_cmd(0.0, -0.3)    
-            self.robot_controller.publish()
-            print "turn right-1"
-        elif r == 0 and l < len(self.left) and l != 0:
-            self.robot_controller.set_move_cmd(0.0, -0.3)    
-            self.robot_controller.publish()
-            print "turn right-2"
-        elif r < len(self.right) and l == 0 and r != 0:
-            self.robot_controller.set_move_cmd(0.0, 0.4)    
-            self.robot_controller.publish()
-            print "turn left-3"
-        elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
-            self.robot_controller.set_move_cmd(0.0, 0.4)    
-            self.robot_controller.publish()
-            print "turn left-4"      
+            for range in self.right:
+                if range < 0.4:
+                    r = r + 1 
+            if i == len(self.front_distance):
+                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.publish()
+                print "turn left-1"
+            elif r == len(self.right) and l < len(self.left):                   
+                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.publish()
+                print "turn left-2"                             
+            elif r < len(self.right) and l == len(self.left):
+                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.publish()
+                print "turn right-1"
+            elif r == 0 and l < len(self.left) and l != 0:
+                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.publish()
+                print "turn right-2"
+            elif r < len(self.right) and l == 0 and r != 0:
+                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.publish()
+                print "turn left-3"
+            elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
+                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.publish()
+                print "turn right-3"            
+        self.robot_controller.set_move_cmd(0.25, 0.0)    
+        self.robot_controller.publish()
+        print "moving forward"
+            
     
     def check_object(self):
         if self.m00 > self.m00_min:           
@@ -190,29 +199,32 @@ class colour_search(object):
                 self.move_rate = 'slow'
         else:
             self.move_rate = 'fast'                
-        if self.move_rate == 'fast' and self.goal_status == False:
+        if self.move_rate == 'fast':
             self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
-            print("Turn fast")
+            print "Turn fast"
+        elif self.move_rate == 'slow':
+            if 0 < self.cy and self.cy <= 560-100:
+                self.robot_controller.set_move_cmd(0.1, 0.25)
+                self.robot_controller.publish()
+                print "Adjust left"
+            elif self.cy > 560+100:
+                self.robot_controller.set_move_cmd(0.1, -0.25)
+                self.robot_controller.publish()
+                print "Adjust right"
         elif self.move_rate == 'stop':
-            if self.min_distance < 0.3 :
+            if self.close_front_distance < 0.5 :
+                self.robot_controller.set_move_cmd(0.1, 0.0)
+                self.robot_controller.publish()
+                time.sleep(2)
                 self.robot_controller.stop()
-                print("SEARCH COMPLETE: The robot is now facing the target pillar.")
+                print "BEACONING COMPLETE: The robot has now stopped."
                 self.distance_status = True
             else:
-                self.robot_controller.set_move_cmd(0.25, 0.0)    
-                self.robot_controller.publish()
-                print "moving towards target" 
-                self.goal_status = True
-        elif self.cy <= 560-100:
-            self.robot_controller.set_move_cmd(0.0, 0.05)
-            self.robot_controller.publish()
-            print("Adjust left")
-        elif self.cy > 560+100:
-            self.robot_controller.set_move_cmd(0.0, -0.05)
-            self.robot_controller.publish()
-            print("Adjust right")                             
+                self.avoid_object()  
+                print "moving towards beacon"                           
         else:
             self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+        
             
         self.robot_controller.publish()
 
@@ -222,20 +234,19 @@ class colour_search(object):
         self.find_colour()   #check target colour
         self.turn_back()     #turn back to the front
         self.leave_spawn()   #move forward
-        self.goal_status = False
+        self.init_search = False
         self.distance_status = False
         while not self.ctrl_c:
             if self.m00 > self.m00_min:
+                self.init_search = True
+                if self.init_search == False:                    
+                    print "BEACON DETECTED: Beaconing initiated."     
                 self.check_object()
                 if self.distance_status == True:
                     break
-            while self.min_distance < 0.5 and self.goal_status == False: 
-                self.avoid_object()           
-            if self.goal_status == False:
-                self.robot_controller.set_move_cmd(0.25, 0.0)    
-                self.robot_controller.publish()
-                print "moving forward"
-            
+            else:
+                self.avoid_object()  
+                 
         self.rate.sleep()
 
             
