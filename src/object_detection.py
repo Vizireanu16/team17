@@ -51,10 +51,10 @@ class colour_search(object):
         self.color_boundaries = {
             "red":    ([-1.8, 217, 100], [3.3, 255, 255]),
             "blue":   ([115, 224, 100],   [130, 255, 255]),
-            "yellow": ([28, 180, 100], [32, 255, 255]),
+            "yellow": ([28, 130, 100], [32, 255, 255]),
             "green":   ([58, 50, 100], [61, 256, 255]),
             "Turquoise":   ([75, 150, 100], [100, 255, 255]),
-            "purple":   ([145, 185, 100], [150, 250, 255])
+            "purple":   ([140, 100, 100], [155, 255, 255])
         }
 
     def shutdown_ops(self):
@@ -85,10 +85,10 @@ class colour_search(object):
         self.m00 = m['m00']
         self.cy = m['m10'] / (m['m00'] + 1e-5)
 
-        if self.m00 > self.m00_min:
-            cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
-            cv2.imshow('cropped image', crop_img)
-            cv2.waitKey(5)
+        #if self.m00 > self.m00_min:
+        cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
+        cv2.imshow('cropped image', crop_img)
+        cv2.waitKey(5)
 
 
         
