@@ -11,57 +11,12 @@ class Task1:
     global counter
     counter = 0
 
-    """
-    def callback(self, msg):
-        self.move = Twist()
-
-        left_arc = msg.ranges[0:10]
-        right_arc = msg.ranges[-10:]
-        front_arc = np.array(left_arc + right_arc)
-        front_range = front_arc.min()
-
-
-        while front_range > 0.01:
-            left_arc = msg.ranges[0:10]
-            right_arc = msg.ranges[-10:]
-            print (left_arc)
-            print (right_arc)
-            front_arc = np.array(left_arc + right_arc)
-            front_range = front_arc.min()
-            print front_range
-            self.move.linear.x = 0.1
-            print self.move.linear.x
-
-        self.move.linear.x = 0
-        self.pub.publish(self.move)
-
-
-        #rospy.init_node("check_obstacle")
-        #sub = rospy.Subscriber("/scan", LaserScan, callback)
-        #pub = rospy.Publisher("/cmd_vel", Twist)
-        #move = Twist()
-        rospy.spin()
-        """
-
-    """
-    stopped = []
-    threading.Timer(5, stopped.append, args=[True]).start()
-    while not stopped:
-        print("Cevaaaaaa")
-        # continue computations
-    """
-
-    #compute_something(stopped)
-
-
-
     def __init__(self):
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         rospy.init_node('publisher_node', anonymous=True)
         self.rate = rospy.Rate(10) # hz
         self.vel_cmd = Twist()
         self.vel_cmd.linear.x = 0.1 # m/s
-        print ("init")
 
         self.pub.publish(self.vel_cmd)
 
@@ -70,31 +25,24 @@ class Task1:
 
         rospy.loginfo("publisher node is active...")
 
-
         self.sub = rospy.Subscriber("/scan", LaserScan, self.callback)
 
 
     def callback(self, msg):
+
         global counter
 
-        print ("ranges[0] " + str(msg.ranges[0]))
         self.vel_cmd = Twist()
 
         left_arc = msg.ranges[0:30]
         right_arc = msg.ranges[-30:]
-        bottom_left = msg.ranges[135:180]
-        bottom_right = msg.ranges[-180:135]
         left = np.array(left_arc)
         right = np.array(right_arc)
-        bleft = np.array(bottom_left)
-        bright = np.array(bottom_right)
         front_arc = np.array(left_arc + right_arc)
 
         i = 0
         l = 0
         r = 0
-        bl = 0
-        br = 0
 
         for range in front_arc:
             if range < 0.5:
@@ -108,79 +56,54 @@ class Task1:
             if range < 0.5:
                 r = r + 1
 
-        for range in bleft:
-            if range < 0.4:
-                bl = bl + 1
-
-        for range in bright:
-            if range < 0.4:
-                br = br + 1
-
-        #print front_arc
-        #print ("ranges: ",front_arc)
-        #print ("i: ", i)
-        print ("i " + str(i))
-        print ("front_arc " + str(len(front_arc)))
-
-        print ("l " + str(l))
-        print ("left " + str(len(left)))
-
-        print ("r " + str(r))
-        print ("right " + str(len(right)))
-
-        #if i == len(front_arc):
-        #    rotate = True
-
-
-
         if i == len(front_arc) and counter < 6:
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = 1.82
             self.pub.publish(self.vel_cmd)
             counter = 0
-            print "a"
+            #print "a"
 
         elif r == len(right) and l < len(left) and counter < 6:
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = 1.82
             self.pub.publish(self.vel_cmd)
             counter = 0
-            print "b"
+            #print "b"
 
         elif r < len(right) and l == len(left) and counter < 6:
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = -1.82
             self.pub.publish(self.vel_cmd)
             counter = counter + 1
-            print "c"
+            #print "c"
 
         elif r == 0 and l < len(left) and l != 0 and counter < 6:
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = -1.82
             self.pub.publish(self.vel_cmd)
             counter = 0
-            print "d"
+            #print "d"
 
         elif r < len(right) and l == 0 and r != 0 and counter < 6:
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = 1.82
             self.pub.publish(self.vel_cmd)
             counter  = 0
-            print "e"
+            #print "e"
 
         elif r < 5 and l < 5 and counter < 6:
             self.vel_cmd.linear.x = 0.26
             self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
             self.pub.publish(self.vel_cmd)
             counter = 0
-            print "g"
+            #print "g"
 
         elif r < len(right) and l < len(left) and r != 0 and l != 0 and counter < 6:
             self.vel_cmd.linear.x = 0
             self.vel_cmd.angular.z = 1.82
             self.pub.publish(self.vel_cmd)
             counter = counter + 1
-            print "f"
+            #print "f"
 
         if counter > 5:
             counter = 0
@@ -188,26 +111,6 @@ class Task1:
             self.vel_cmd.angular.z = 1.82
             self.pub.publish(self.vel_cmd)
             time.sleep(2)
-
-
-        print("counter = " + str(counter))
-
-
-
-        """
-        if bl > 10 or br > 10:
-            self.vel_cmd.linear.x = 0.1
-            self.vel_cmd.angular.z = 0
-            self.pub.publish(self.vel_cmd)
-        """
-
-        """
-        elif msg.ranges[0] < 0.3:
-            self.vel_cmd.linear.x = 0
-            self.pub.publish(self.vel_cmd)
-        """
-
-
 
     def shutdownhook(self):
         self.shutdown_function()
