@@ -89,9 +89,6 @@ class colour_search(object):
         cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
         cv2.imshow('cropped image', crop_img)
         cv2.waitKey(5)
-
-
-        
         
     def find_colour(self):
         for color_name, (lower, upper) in self.color_boundaries.items():
@@ -103,7 +100,6 @@ class colour_search(object):
                 self.lowerbound = lower_bound
                 self.upperbound = upper_bound
 
-            
     def turn_180(self):
         time.sleep(1)
         self.robot_controller.set_move_cmd(0.0, 0.33)    
@@ -119,7 +115,6 @@ class colour_search(object):
         time.sleep(6)
         self.robot_controller.stop()   
         print "stop"
-
 
     def find_pillar(self):
         self.robot_controller.set_move_cmd(0.35, 0.0)    
