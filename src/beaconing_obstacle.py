@@ -128,12 +128,22 @@ class colour_search(object):
         self.robot_controller.stop()    
         print "stop"
 
+    def move_small(self):
+        self.find_colour()
+        self.robot_controller.set_move_cmd(0.1, 0.0)    
+        self.robot_controller.publish()
+        print "move forward by 0.1"
+        time.sleep(3)
+        self.robot_controller.stop()    
+        print "stop"
+
 
     def main(self):
         self.turn_180()      #turn back to check target colour
         self.find_colour()   #check target colour
         self.turn_back()     #turn back to the front
         self.find_pillar()   #move forward
+        self.move_small()
         while not self.ctrl_c:
             if self.m00 > self.m00_min:
                 if self.cy >= 560-100 and self.cy <= 560+100:
