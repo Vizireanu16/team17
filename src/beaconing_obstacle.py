@@ -17,15 +17,42 @@ from move_tb3 import MoveTB3
 from tb3_odometry import TB3Odometry
 import numpy as np
 
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+from tf.transformations import euler_from_quaternion
+# import some useful mathematical operations (and pi):
+from math import sqrt, pow, pi
+
 
 
 class colour_search(object):
+
+    def callback_function(self,odom_data):
+        # obtain the orientation co-ords:
+        x = odom_data.pose.pose.orientation.x
+        y = odom_data.pose.pose.orientation.y
+        z = odom_data.pose.pose.orientation.z
+        w = odom_data.pose.pose.orientation.w
+
+        # obtain the position co-ords:
+        self.x = odom_data.pose.pose.position.x
+        self.y = odom_data.pose.pose.position.y
+
+        # convert orientation co-ords to roll, pitch yaw (theta_x, theta_y, theta_z):
+        (roll, pitch, self.yaw) = euler_from_quaternion([x, y, z, w],'sxyz')
+
+            # set the robot starting position:
+        self.init_x = self.x
+        self.init_y = self.y
+        self.init_yaw = self.yaw
 
     def __init__(self):
         rospy.init_node('turn_and_face')
         self.base_image_path = '/home/student/myrosdata/week6_images'
         self.camera_subscriber = rospy.Subscriber("/camera/rgb/image_raw",
             Image, self.camera_callback)
+        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.sub = rospy.Subscriber("odom", Odometry, self.callback_function)
         self.cvbridge_interface = CvBridge()
 
         self.robot_controller = MoveTB3()
@@ -56,6 +83,17 @@ class colour_search(object):
             "Turquoise":   ([75, 150, 100], [100, 255, 255]),
             "purple":   ([145, 150, 100], [155, 255, 255])
         }
+
+        self.x = 0.0
+        self.y = 0.0
+        self.yaw = 0.0
+        self.init_x =  0.0
+        self.init_y = 0.0
+        self.init_yaw = 0.0
+
+        self.vel = Twist()
+
+        rospy.loginfo("pubsub node is active...")
 
     def shutdown_ops(self):
         self.robot_controller.stop()
@@ -130,13 +168,23 @@ class colour_search(object):
 
     def move_small(self):
         self.find_colour()
-        self.robot_controller.set_move_cmd(0.1, 0.0)    
-        self.robot_controller.publish()
-        print "move forward by 0.1"
-        time.sleep(3)
-        self.robot_controller.stop()    
-        print "stop"
-
+        while not self.ctrl_c:
+            if self.find_pillar():
+                self.vel = Twist()
+                print("init")
+                if sqrt(pow(self.init_x - self.x, 2) + pow(self.init_y - self.y, 2)) >= 0.1:
+                    # if distance travelled is greater than 0.5m then stop, and start turning:
+                    self.vel = Twist()
+                    self.turn = True
+                    # reset the init_x & y values for the next forwards operation:
+                    self.init_x = self.x
+                    self.init_y = self.y
+                    print("fwd-turn transition")
+                else:
+                    # if not, then keep on moving forward at 0.1 m/s:
+                    self.vel = Twist()
+                    self.vel.linear.x = 0.1
+                    print("moving forwards")
 
     def main(self):
         self.turn_180()      #turn back to check target colour
@@ -167,8 +215,6 @@ class colour_search(object):
             self.robot_controller.publish()
             self.rate.sleep()
 
-            
-            
 if __name__ == '__main__':
     search_ob = colour_search()
     try:
