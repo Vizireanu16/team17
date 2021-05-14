@@ -55,7 +55,7 @@ class colour_search(object):
             "yellow": ([28, 180, 100], [32, 255, 255]),
             "green":   ([58, 50, 100], [61, 256, 255]),
             "Turquoise":   ([75, 150, 100], [100, 255, 255]),
-            "purple":   ([145, 185, 100], [150, 250, 255])
+            "purple":   ([145, 150, 100], [150, 250, 255])
         }
 
         self.scan_subscriber = rospy.Subscriber("/scan",
@@ -63,6 +63,10 @@ class colour_search(object):
 
         self.robot_odom = TB3Odometry()
         self.arc_angles = np.arange(-40, 40)
+        self.init_x = 0
+        self.init_y = 0
+        self.raw_data = []
+
         self.init_search = False
 
     def shutdown_ops(self):
@@ -108,10 +112,10 @@ class colour_search(object):
         self.m00 = m['m00']
         self.cy = m['m10'] / (m['m00'] + 1e-5)
 
-        if self.m00 > self.m00_min:
-            cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
-            cv2.imshow('cropped image', crop_img)
-            cv2.waitKey(5)      
+        #if self.m00 > self.m00_min:
+        cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
+        cv2.imshow('cropped image', crop_img)
+        cv2.waitKey(5)      
         
     def find_colour(self):
         for color_name, (lower, upper) in self.color_boundaries.items():
@@ -122,7 +126,6 @@ class colour_search(object):
                 print("SEARCH INITIATED: The target beacon colour is {}".format (color_name))
                 self.lowerbound = lower_bound
                 self.upperbound = upper_bound
-
             
     def turn_180(self):
         time.sleep(1)
@@ -132,7 +135,7 @@ class colour_search(object):
         time.sleep(6)
 
     def turn_back(self):
-        self.robot_controller.set_move_cmd(0.0, -0.36)    
+        self.robot_controller.set_move_cmd(0.0, -0.35)    
         self.robot_controller.publish()
         print "turning back"
         time.sleep(6)
@@ -190,6 +193,65 @@ class colour_search(object):
         print "moving forward"
             
     
+    def rotate_left(self):
+        self.robot_controller.set_move_cmd(0.0, 0.4)    
+        self.robot_controller.publish()
+        print "Rotate to find beacon"
+
+    def rotate_right(self):
+        self.robot_controller.set_move_cmd(0.0, -0.4)    
+        self.robot_controller.publish()
+        print "Rotate to find beacon"
+    
+
+    def spawn_zone_checker(self):
+        current_x = self.robot_odom.posx
+        current_y = self.robot_odom.posy
+        distance_to_spawn = np.sqrt(pow(current_x-self.init_x, 2) + pow(current_y-self.init_y, 2))
+
+        
+        current_global_yaw = (self.robot_odom.yaw+360)%360
+        global_angle_to_spawn = (math.degrees(math.atan2(self.init_x-current_x, self.init_y-current_y))-90+360)%360
+        local_angle_to_spawn = int(round(global_angle_to_spawn-current_global_yaw+360)%360)
+        
+        checker_vision = 0
+
+        if self.min_distance> 0.6:
+            checker_vision = 20
+        else: 
+            checker_vision = 65
+
+        left_lidar_index, right_lidar_index = int(local_angle_to_spawn-checker_vision), int(local_angle_to_spawn+checker_vision)
+
+        checker_distances = []
+
+        if left_lidar_index < 0:
+            checker_distances.extend(self.raw_data[(left_lidar_index+360):359])
+        else:
+            checker_distances.extend(self.raw_data[left_lidar_index:local_angle_to_spawn])
+
+        if right_lidar_index >= 360:
+            checker_distances.extend(self.raw_data[0:(right_lidar_index-360)])
+        else:
+            checker_distances.extend(self.raw_data[local_angle_to_spawn:right_lidar_index])
+
+        torlerance = 0.2
+
+        checker = False
+
+        for dis in checker_distances:
+            if abs(dis-distance_to_spawn) < torlerance:
+                checker =  True
+                break
+            else: 
+                checker = False
+
+        if distance_to_spawn < 1:
+            checker = True
+
+        return checker
+
+
     def check_object(self):
         if self.m00 > self.m00_min:           
             if self.cy >= 560-100 and self.cy <= 560+100:
@@ -212,7 +274,7 @@ class colour_search(object):
                 self.robot_controller.publish()
                 print "Adjust right"
         elif self.move_rate == 'stop':
-            if self.close_front_distance < 0.5 :
+            if self.close_front_distance < 0.6 :
                 self.robot_controller.set_move_cmd(0.1, 0.0)
                 self.robot_controller.publish()
                 time.sleep(2)
@@ -236,16 +298,30 @@ class colour_search(object):
         self.leave_spawn()   #move forward
         self.init_search = False
         self.distance_status = False
+        counter = 0
         while not self.ctrl_c:
-            if self.m00 > self.m00_min:
+            if self.m00 > self.m00_min: 
                 self.init_search = True
                 if self.init_search == False:                    
                     print "BEACON DETECTED: Beaconing initiated."     
                 self.check_object()
                 if self.distance_status == True:
                     break
+            elif counter == 79500 and self.m00 < self.m00_min :
+                rotate_counter = 0
+                while rotate_counter < 30000 and self.m00 < self.m00_min:
+                    self.rotate_right()
+                    rotate_counter+=1               
+                while 30000 < rotate_counter < 90000 and self.m00 < self.m00_min:
+                    self.rotate_left()
+                    rotate_counter+=1
+                while 90000 < rotate_counter < 120000 and self.m00 < self.m00_min:
+                    self.rotate_right()
+                    rotate_counter+=1
+                counter = 0
             else:
-                self.avoid_object()  
+                counter+=1
+                self.avoid_object()
                  
         self.rate.sleep()
 
