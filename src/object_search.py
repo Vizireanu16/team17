@@ -300,6 +300,7 @@ class colour_search(object):
         self.distance_status = False
         counter = 0
         while not self.ctrl_c:
+
             if self.m00 > self.m00_min: 
                 self.init_search = True
                 if self.init_search == False:                    

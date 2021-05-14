@@ -1,42 +1,62 @@
-#!/usr/bin/env python
+#! /usr/bin/python
 
+# Import the core Python modules for ROS and to implement ROS Actions:
 import rospy
-from sensor_msgs.msg import LaserScan
-from sensor_msgs.msg import Image
-from geometry_msgs.msg import Twist
-import numpy as np
-import random
 import time
 import math
+
+# Import some image processing modules:
 import cv2
 from cv_bridge import CvBridge
+
+# Import all the necessary ROS message types:
+from sensor_msgs.msg import Image
+from sensor_msgs.msg import LaserScan
+
+# Import some other modules from within this package
 from move_tb3 import MoveTB3
 from tb3_odometry import TB3Odometry
+import numpy as np
 
-class Task1(object):
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+from tf.transformations import euler_from_quaternion
+# import some useful mathematical operations (and pi):
+from math import sqrt, pow, pi
 
-    global counter
-    counter = 0
+
+
+
+class colour_search(object):
+
+    def callback_function(self,odom_data):
+        # obtain the orientation co-ords:
+        x = odom_data.pose.pose.orientation.x
+        y = odom_data.pose.pose.orientation.y
+        z = odom_data.pose.pose.orientation.z
+        w = odom_data.pose.pose.orientation.w
+
+        # obtain the position co-ords:
+        self.x = odom_data.pose.pose.position.x
+        self.y = odom_data.pose.pose.position.y
+
+        # convert orientation co-ords to roll, pitch yaw (theta_x, theta_y, theta_z):
+        (roll, pitch, yaw) = euler_from_quaternion([x, y, z, w],'sxyz')
+
+        # set the initial robot pose if this node has just been launch
+        pos_x = odom_data.pose.pose.position.x
+        pos_y = odom_data.pose.pose.position.y
+        
+        #print("x = {:.3f}, y = {:.3f}, theta_z = {:.3f}".format(pos_x, pos_y, yaw))
 
     def __init__(self):
-        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
-        rospy.init_node('publisher_node', anonymous=True)
-        self.rate = rospy.Rate(10) # hz
-        self.vel_cmd = Twist()
-        self.vel_cmd.linear.x = 0.1 # m/s
-
-        self.pub.publish(self.vel_cmd)
-
-        self.ctrl_c = False
-        rospy.on_shutdown(self.shutdownhook)
-
-        rospy.loginfo("publisher node is active...")
-
-        self.sub = rospy.Subscriber("/scan", LaserScan, self.callback)
-
+        rospy.init_node('object_search')
         self.base_image_path = '/home/student/myrosdata/week6_images'
         self.camera_subscriber = rospy.Subscriber("/camera/rgb/image_raw",
             Image, self.camera_callback)
+        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.sub = rospy.Subscriber("odom", Odometry, self.callback_function)
+
         self.cvbridge_interface = CvBridge()
 
         self.robot_controller = MoveTB3()
@@ -46,10 +66,13 @@ class Task1(object):
 
         self.move_rate = '' # fast, slow or stop
 
-        self.rate = rospy.Rate(5)
+        self.ctrl_c = False
+        rospy.on_shutdown(self.shutdown_ops)
+
+        self.rate = rospy.Rate(5000)
         
         self.m00 = 0
-        self.m00_min = 10000
+        self.m00_min = 100000
 
         self.mask = np.zeros((1080,1920,1), np.uint8)
         self.hsv_img = np.zeros((1080,1920,3), np.uint8)
@@ -61,105 +84,51 @@ class Task1(object):
             "blue":   ([115, 224, 100],   [130, 255, 255]),
             "yellow": ([28, 180, 100], [32, 255, 255]),
             "green":   ([58, 50, 100], [61, 256, 255]),
-            "Turquoise":   ([75, 50, 100], [91, 254, 255]),
+            "Turquoise":   ([75, 150, 100], [100, 255, 255]),
             "purple":   ([145, 185, 100], [150, 250, 255])
         }
 
-    def callback(self, msg):
+        self.scan_subscriber = rospy.Subscriber("/scan",
+            LaserScan, self.scan_callback)
 
-        global counter
+        self.robot_odom = TB3Odometry()
+        self.arc_angles = np.arange(-40, 40)
+        self.init_search = False
 
-        self.vel_cmd = Twist()
+        # a flag if this node has just been launched
+        self.startup = True
+        # a flag to use for the robot to transition between moving forwards and turning:
+        self.turn = False
+        # allocate variables for "current" and "starting" robot pose
+        self.x = 0.0
+        self.y = 0.0
+        self.yaw = 0.0
+        self.pos_x =  0.0
+        self.pos_y = 0.0
+        self.yaw = 0.0
 
-        left_arc = msg.ranges[0:30]
-        right_arc = msg.ranges[-30:]
-        left = np.array(left_arc)
-        right = np.array(right_arc)
-        front_arc = np.array(left_arc + right_arc)
+        self.vel = Twist()
+        rospy.loginfo("pubsub node is active...")
 
-        i = 0
-        l = 0
-        r = 0
-
-        for range in front_arc:
-            if range < 0.5:
-                i = i + 1
-
-        for range in left:
-            if range < 0.5:
-                l = l + 1
-
-        for range in right:
-            if range < 0.5:
-                r = r + 1
-
-        if i == len(front_arc) and counter < 6:
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = 1.82
-            self.pub.publish(self.vel_cmd)
-            counter = 0
-            #print "a"
-
-        elif r == len(right) and l < len(left) and counter < 6:
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = 1.82
-            self.pub.publish(self.vel_cmd)
-            counter = 0
-            #print "b"
-
-        elif r < len(right) and l == len(left) and counter < 6:
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = -1.82
-            self.pub.publish(self.vel_cmd)
-            counter = counter + 1
-            #print "c"
-
-        elif r == 0 and l < len(left) and l != 0 and counter < 6:
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = -1.82
-            self.pub.publish(self.vel_cmd)
-            counter = 0
-            #print "d"
-
-        elif r < len(right) and l == 0 and r != 0 and counter < 6:
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = 1.82
-            self.pub.publish(self.vel_cmd)
-            counter  = 0
-            #print "e"
-
-        elif r < 5 and l < 5 and counter < 6:
-            self.vel_cmd.linear.x = 0.26
-            self.vel_cmd.angular.z = random.uniform(-0.5, 0.5)
-            self.pub.publish(self.vel_cmd)
-            counter = 0
-            #print "g"
-
-        elif r < len(right) and l < len(left) and r != 0 and l != 0 and counter < 6:
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = 1.82
-            self.pub.publish(self.vel_cmd)
-            counter = counter + 1
-            #print "f"
-
-        if counter > 5:
-            counter = 0
-            self.vel_cmd.linear.x = 0
-            self.vel_cmd.angular.z = 1.82
-            self.pub.publish(self.vel_cmd)
-            time.sleep(2)
-
-    def shutdownhook(self):
-        self.shutdown_function()
+    def shutdown_ops(self):
         self.robot_controller.stop()
         cv2.destroyAllWindows()
         self.ctrl_c = True
-
-    def shutdown_function(self):
-        print("stopping publisher node at: {}".format(rospy.get_time()))
-        self.vel_cmd.linear.x = 0.0 # m/s
-        self.vel_cmd.angular.z = 0.0
-        self.pub.publish(self.vel_cmd)
+    
+    def scan_callback(self, scan_data):
+        left_arc = scan_data.ranges[0:40]
+        right_arc = scan_data.ranges[-40:]
+        close_left_arc = scan_data.ranges[0:7]
+        close_right_arc = scan_data.ranges[-7:]
+        self.dead_front = scan_data.ranges[0]    
+        front_arc = np.array(left_arc[::-1] + right_arc[::-1])
+        close_front_arc = np.array(close_left_arc[::-1] + close_right_arc[::-1])
+        self.left = left_arc
+        self.right = right_arc
+        self.close_front_distance = close_front_arc.min()
+        self.front_distance = front_arc
+        self.min_distance = front_arc.min()
+        self.object_angle = self.arc_angles[np.argmin(front_arc)]
 
     def camera_callback(self, img_data):
         try:
@@ -187,7 +156,7 @@ class Task1(object):
         if self.m00 > self.m00_min:
             cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
             cv2.imshow('cropped image', crop_img)
-            cv2.waitKey(5)
+            cv2.waitKey(5)      
         
     def find_colour(self):
         for color_name, (lower, upper) in self.color_boundaries.items():
@@ -195,70 +164,153 @@ class Task1(object):
             upper_bound = np.array(upper)
             mask = cv2.inRange(self.hsv_img, lower_bound, upper_bound)
             if mask.any():
-                print("SEARCH INITIATED: The target colour is {}".format (color_name))
+                print("SEARCH INITIATED: The target beacon colour is {}".format (color_name))
                 self.lowerbound = lower_bound
                 self.upperbound = upper_bound
 
+            
     def turn_180(self):
         time.sleep(1)
         self.robot_controller.set_move_cmd(0.0, 0.33)    
         self.robot_controller.publish()
-        print "turn left"
+        print "checking colour"
         time.sleep(6)
 
     def turn_back(self):
-        self.robot_controller.set_move_cmd(0.0, -0.32)    
+        self.robot_controller.set_move_cmd(0.0, -0.36)    
         self.robot_controller.publish()
-        print "turn right"
+        print "turning back"
         time.sleep(6)
         self.robot_controller.stop()   
         print "stop"
 
+    def leave_spawn(self):
+        if self.startup:
+            self.robot_controller.set_move_cmd(0.15, 0.0)    
+            self.robot_controller.publish()
+            if sqrt(pow(self.pos_x - self.x, 2) + pow(self.pos_y - self.y, 2)) >= 0.3:
+                    # if distance travelled is greater than 0.5m then stop, and start turning:
+                self.vel = Twist()
+                self.turn = True
+                    # reset the init_x & y values for the next forwards operation:
+                self.pos_x = self.x
+                self.pos_y = self.y
+                print("MOVED 0.1M")
+            else:
+                    # if not, then keep on moving forward at 0.1 m/s:
+                self.vel = Twist()
+                self.vel.linear.x = 0.1
+                print("moving forwards")
+            print "leaving spawn"
+            time.sleep(3)
+       
+    
+    def avoid_object(self):
+        while self.min_distance < 0.5: 
+            i = 0
+            l = 0
+            r = 0
+            for range in self.front_distance:
+                if range < 0.4:
+                    i = i + 1
 
-    def find_pillar(self):
-        self.robot_controller.set_move_cmd(0.35, 0.0)    
+            for range in self.left:
+                if range < 0.4:
+                    l = l + 1
+
+            for range in self.right:
+                if range < 0.4:
+                    r = r + 1 
+            if i == len(self.front_distance):
+                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.publish()
+                #print "turn left-1"
+            elif r == len(self.right) and l < len(self.left):                   
+                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.publish()
+                #print "turn left-2"                             
+            elif r < len(self.right) and l == len(self.left):
+                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.publish()
+                #print "turn right-1"
+            elif r == 0 and l < len(self.left) and l != 0:
+                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.publish()
+                #print "turn right-2"
+            elif r < len(self.right) and l == 0 and r != 0:
+                self.robot_controller.set_move_cmd(0.1, 0.4)    
+                self.robot_controller.publish()
+                #print "turn left-3"
+            elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
+                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.publish()
+                #print "turn right-3"     
+        self.robot_controller.set_move_cmd(0.25, 0.0)    
         self.robot_controller.publish()
-        print "move forward"
-        time.sleep(3)
-        self.robot_controller.set_move_cmd(0.0, 0.4)    
+        #print "moving forward"
+            
+    
+    def check_object(self):
+        if self.m00 > self.m00_min:           
+            if self.cy >= 560-100 and self.cy <= 560+100:
+                if self.move_rate == 'slow':
+                    self.move_rate = 'stop'                             
+            else:
+                self.move_rate = 'slow'
+        else:
+            self.move_rate = 'fast'                
+        if self.move_rate == 'fast':
+            self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+           # print "Turn fast"
+        elif self.move_rate == 'slow':
+            if 0 < self.cy and self.cy <= 560-100:
+                self.robot_controller.set_move_cmd(0.1, 0.25)
+                self.robot_controller.publish()
+                #print "Adjust left"
+            elif self.cy > 560+100:
+                self.robot_controller.set_move_cmd(0.1, -0.25)
+                self.robot_controller.publish()
+                #print "Adjust right"
+        elif self.move_rate == 'stop':
+            if self.close_front_distance < 0.5 :
+                self.robot_controller.set_move_cmd(0.1, 0.0)
+                self.robot_controller.publish()
+                time.sleep(2)
+                self.robot_controller.stop()
+                print "BEACONING COMPLETE: The robot has now stopped."
+                self.distance_status = True
+            else:
+                self.avoid_object()  
+                #print "moving towards beacon"                           
+        else:
+            self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+        
+            
         self.robot_controller.publish()
-        print "turn left"
-        time.sleep(7)
-        self.robot_controller.stop()    
-        print "stop"
 
 
     def main(self):
         self.turn_180()      #turn back to check target colour
         self.find_colour()   #check target colour
         self.turn_back()     #turn back to the front
-        self.find_pillar()   #move forward
+        self.leave_spawn()   #move forward
+        self.init_search = False
+        self.distance_status = False
         while not self.ctrl_c:
             if self.m00 > self.m00_min:
-                if self.cy >= 560-100 and self.cy <= 560+100:
-                    if self.move_rate == 'slow':
-                        self.move_rate = 'stop'
-                else:
-                    self.move_rate = 'slow'
+                self.init_search = True
+                if self.init_search == False:                    
+                    print "BEACON DETECTED: Beaconing initiated."     
+                self.check_object()
+                if self.distance_status == True:
+                    break
             else:
-                self.move_rate = 'fast'                
-            if self.move_rate == 'fast':
-                self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
-            elif self.move_rate == 'slow':
-                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
-            elif self.move_rate == 'stop':
-                self.robot_controller.stop()
-                print("SEARCH COMPLETE: The robot is now facing the target pillar.")
-                break
-            else:
-                self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
-
-            self.pub.publish(self.vel_cmd)
-            self.robot_controller.publish()
-            self.rate.sleep()
-
+                self.avoid_object()  
+                 
+        self.rate.sleep()
+            
 if __name__ == '__main__':
-    publisher_instance = Task1()
+    search_ob = colour_search()
     try:
         search_ob.main()
     except rospy.ROSInterruptException:
