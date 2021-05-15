@@ -18,15 +18,45 @@ from move_tb3 import MoveTB3
 from tb3_odometry import TB3Odometry
 import numpy as np
 
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+from tf.transformations import euler_from_quaternion
+# import some useful mathematical operations (and pi):
+from math import sqrt, pow, pi
+
+
 
 
 class colour_search(object):
+
+    def callback_function(self,odom_data):
+        # obtain the orientation co-ords:
+        x = odom_data.pose.pose.orientation.x
+        y = odom_data.pose.pose.orientation.y
+        z = odom_data.pose.pose.orientation.z
+        w = odom_data.pose.pose.orientation.w
+
+        # obtain the position co-ords:
+        self.x = odom_data.pose.pose.position.x
+        self.y = odom_data.pose.pose.position.y
+
+        # convert orientation co-ords to roll, pitch yaw (theta_x, theta_y, theta_z):
+        (roll, pitch, yaw) = euler_from_quaternion([x, y, z, w],'sxyz')
+
+        # set the initial robot pose if this node has just been launch
+        pos_x = odom_data.pose.pose.position.x
+        pos_y = odom_data.pose.pose.position.y
+        
+        #print("x = {:.3f}, y = {:.3f}, theta_z = {:.3f}".format(pos_x, pos_y, yaw))
 
     def __init__(self):
         rospy.init_node('object_search')
         self.base_image_path = '/home/student/myrosdata/week6_images'
         self.camera_subscriber = rospy.Subscriber("/camera/rgb/image_raw",
             Image, self.camera_callback)
+        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.sub = rospy.Subscriber("odom", Odometry, self.callback_function)
+
         self.cvbridge_interface = CvBridge()
 
         self.robot_controller = MoveTB3()
@@ -64,6 +94,21 @@ class colour_search(object):
         self.robot_odom = TB3Odometry()
         self.arc_angles = np.arange(-40, 40)
         self.init_search = False
+
+        # a flag if this node has just been launched
+        self.startup = True
+        # a flag to use for the robot to transition between moving forwards and turning:
+        self.turn = False
+        # allocate variables for "current" and "starting" robot pose
+        self.x = 0.0
+        self.y = 0.0
+        self.yaw = 0.0
+        self.pos_x =  0.0
+        self.pos_y = 0.0
+        self.yaw = 0.0
+
+        self.vel = Twist()
+        rospy.loginfo("pubsub node is active...")
 
     def shutdown_ops(self):
         self.robot_controller.stop()
@@ -140,10 +185,25 @@ class colour_search(object):
         print "stop"
 
     def leave_spawn(self):
-        self.robot_controller.set_move_cmd(0.15, 0.0)    
-        self.robot_controller.publish()
-        print "leaving spawn"
-        time.sleep(3)
+        if self.startup:
+            self.robot_controller.set_move_cmd(0.15, 0.0)    
+            self.robot_controller.publish()
+            if sqrt(pow(self.pos_x - self.x, 2) + pow(self.pos_y - self.y, 2)) >= 0.3:
+                    # if distance travelled is greater than 0.5m then stop, and start turning:
+                self.vel = Twist()
+                self.turn = True
+                    # reset the init_x & y values for the next forwards operation:
+                self.pos_x = self.x
+                self.pos_y = self.y
+                print("MOVED 0.1M")
+            else:
+                    # if not, then keep on moving forward at 0.1 m/s:
+                self.vel = Twist()
+                self.vel.linear.x = 0.1
+                print("moving forwards")
+            print "leaving spawn"
+            time.sleep(3)
+       
     
     def avoid_object(self):
         while self.min_distance < 0.5: 
@@ -164,34 +224,30 @@ class colour_search(object):
             if i == len(self.front_distance):
                 self.robot_controller.set_move_cmd(0.0, 0.4)    
                 self.robot_controller.publish()
-                print "turn left-1"
+                #print "turn left-1"
             elif r == len(self.right) and l < len(self.left):                   
                 self.robot_controller.set_move_cmd(0.0, 0.4)    
                 self.robot_controller.publish()
-                print "turn left-2"                             
+                #print "turn left-2"                             
             elif r < len(self.right) and l == len(self.left):
                 self.robot_controller.set_move_cmd(0.0, -0.4)    
                 self.robot_controller.publish()
-                print "turn right-1"
+                #print "turn right-1"
             elif r == 0 and l < len(self.left) and l != 0:
                 self.robot_controller.set_move_cmd(0.0, -0.4)    
                 self.robot_controller.publish()
-                print "turn right-2"
+                #print "turn right-2"
             elif r < len(self.right) and l == 0 and r != 0:
                 self.robot_controller.set_move_cmd(0.1, 0.4)    
                 self.robot_controller.publish()
-                print "turn left-3"
+                #print "turn left-3"
             elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
                 self.robot_controller.set_move_cmd(0.0, -0.4)    
                 self.robot_controller.publish()
-                print "turn right-3"
-            if  len(self.front_distance) > 0.1 :
-                self.robot_controller.set_move_cmd(0.0, 0.4)    
-                self.robot_controller.publish()
-                print "URGENT TURN"            
+                #print "turn right-3"     
         self.robot_controller.set_move_cmd(0.25, 0.0)    
         self.robot_controller.publish()
-        print "moving forward"
+        #print "moving forward"
             
     
     def check_object(self):
@@ -205,16 +261,16 @@ class colour_search(object):
             self.move_rate = 'fast'                
         if self.move_rate == 'fast':
             self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
-            print "Turn fast"
+           # print "Turn fast"
         elif self.move_rate == 'slow':
             if 0 < self.cy and self.cy <= 560-100:
                 self.robot_controller.set_move_cmd(0.1, 0.25)
                 self.robot_controller.publish()
-                print "Adjust left"
+                #print "Adjust left"
             elif self.cy > 560+100:
                 self.robot_controller.set_move_cmd(0.1, -0.25)
                 self.robot_controller.publish()
-                print "Adjust right"
+                #print "Adjust right"
         elif self.move_rate == 'stop':
             if self.close_front_distance < 0.5 :
                 self.robot_controller.set_move_cmd(0.1, 0.0)
@@ -225,7 +281,7 @@ class colour_search(object):
                 self.distance_status = True
             else:
                 self.avoid_object()  
-                print "moving towards beacon"                           
+                #print "moving towards beacon"                           
         else:
             self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
         

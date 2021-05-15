@@ -202,54 +202,6 @@ class colour_search(object):
         self.robot_controller.set_move_cmd(0.0, -0.4)    
         self.robot_controller.publish()
         print "Rotate to find beacon"
-    
-
-    def spawn_zone_checker(self):
-        current_x = self.robot_odom.posx
-        current_y = self.robot_odom.posy
-        distance_to_spawn = np.sqrt(pow(current_x-self.init_x, 2) + pow(current_y-self.init_y, 2))
-
-        
-        current_global_yaw = (self.robot_odom.yaw+360)%360
-        global_angle_to_spawn = (math.degrees(math.atan2(self.init_x-current_x, self.init_y-current_y))-90+360)%360
-        local_angle_to_spawn = int(round(global_angle_to_spawn-current_global_yaw+360)%360)
-        
-        checker_vision = 0
-
-        if self.min_distance> 0.6:
-            checker_vision = 20
-        else: 
-            checker_vision = 65
-
-        left_lidar_index, right_lidar_index = int(local_angle_to_spawn-checker_vision), int(local_angle_to_spawn+checker_vision)
-
-        checker_distances = []
-
-        if left_lidar_index < 0:
-            checker_distances.extend(self.raw_data[(left_lidar_index+360):359])
-        else:
-            checker_distances.extend(self.raw_data[left_lidar_index:local_angle_to_spawn])
-
-        if right_lidar_index >= 360:
-            checker_distances.extend(self.raw_data[0:(right_lidar_index-360)])
-        else:
-            checker_distances.extend(self.raw_data[local_angle_to_spawn:right_lidar_index])
-
-        torlerance = 0.2
-
-        checker = False
-
-        for dis in checker_distances:
-            if abs(dis-distance_to_spawn) < torlerance:
-                checker =  True
-                break
-            else: 
-                checker = False
-
-        if distance_to_spawn < 1:
-            checker = True
-
-        return checker
 
 
     def check_object(self):
@@ -300,7 +252,8 @@ class colour_search(object):
         self.distance_status = False
         counter = 0
         while not self.ctrl_c:
-            if self.m00 > self.m00_min: #and self.spawn_zone_checker() == True:
+
+            if self.m00 > self.m00_min: 
                 self.init_search = True
                 if self.init_search == False:                    
                     print "BEACON DETECTED: Beaconing initiated."     
@@ -308,24 +261,20 @@ class colour_search(object):
                 if self.distance_status == True:
                     break
             elif counter == 79500 and self.m00 < self.m00_min :
-                test = 0
-                while test < 30000 and self.m00 < self.m00_min:
+                rotate_counter = 0
+                while rotate_counter < 30000 and self.m00 < self.m00_min:
                     self.rotate_right()
-                    test+=1
-                    print test
-                while 30000 < test < 90000 and self.m00 < self.m00_min:
+                    rotate_counter+=1               
+                while 30000 < rotate_counter < 90000 and self.m00 < self.m00_min:
                     self.rotate_left()
-                    test+=1
-                    print test
-                while 90000 < test < 120000 and self.m00 < self.m00_min:
+                    rotate_counter+=1
+                while 90000 < rotate_counter < 120000 and self.m00 < self.m00_min:
                     self.rotate_right()
-                    test+=1
-                    print test
+                    rotate_counter+=1
                 counter = 0
             else:
                 counter+=1
                 self.avoid_object()
-                print counter
                  
         self.rate.sleep()
 

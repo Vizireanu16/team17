@@ -108,30 +108,30 @@ class colour_search(object):
         time.sleep(1)
         self.robot_controller.set_move_cmd(0.0, 0.33)    
         self.robot_controller.publish()
-        print "turn left"
+        #print "turn left"
         time.sleep(6)
 
 
     def turn_back(self):
         self.robot_controller.set_move_cmd(0.0, -0.32)    
         self.robot_controller.publish()
-        print "turn right"
+        #print "turn right"
         time.sleep(6)
         self.robot_controller.stop()   
-        print "stop"
+        #print "stop"
 
 
     def find_pillar(self):
         self.robot_controller.set_move_cmd(0.35, 0.0)    
         self.robot_controller.publish()
-        print "move forward"
+        #print "move forward"
         time.sleep(3)
         self.robot_controller.set_move_cmd(0.0, 0.4)    
         self.robot_controller.publish()
-        print "turn left"
+        #print "turn left"
         time.sleep(7)
         self.robot_controller.stop()    
-        print "stop"
+        #print "stop"
 
 
     def main(self):

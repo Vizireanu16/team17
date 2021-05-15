@@ -1,0 +1,4 @@
+<launch>
+    <node name="maze_nav" pkg="team17" type="maze_nav_Stanley.py" output="screen">
+    </node>
+</launch>
