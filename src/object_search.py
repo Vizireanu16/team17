@@ -131,21 +131,21 @@ class colour_search(object):
         time.sleep(1)
         self.robot_controller.set_move_cmd(0.0, 0.33)    
         self.robot_controller.publish()
-        print "checking colour"
+        #print "checking colour"
         time.sleep(6)
 
     def turn_back(self):
         self.robot_controller.set_move_cmd(0.0, -0.35)    
         self.robot_controller.publish()
-        print "turning back"
+        #print "turning back"
         time.sleep(6)
         self.robot_controller.stop()   
-        print "stop"
+        #print "stop"
 
     def leave_spawn(self):
         self.robot_controller.set_move_cmd(0.15, 0.0)    
         self.robot_controller.publish()
-        print "leaving spawn"
+        #print "leaving spawn"
         time.sleep(3)
 
     def avoid_object(self):
@@ -167,41 +167,41 @@ class colour_search(object):
             if i == len(self.front_distance):
                 self.robot_controller.set_move_cmd(0.0, 0.4)    
                 self.robot_controller.publish()
-                print "turn left-1"
+                #print "turn left-1"
             elif r == len(self.right) and l < len(self.left):                   
                 self.robot_controller.set_move_cmd(0.0, 0.4)    
                 self.robot_controller.publish()
-                print "turn left-2"                             
+                #print "turn left-2"                             
             elif r < len(self.right) and l == len(self.left):
                 self.robot_controller.set_move_cmd(0.0, -0.4)    
                 self.robot_controller.publish()
-                print "turn right-1"
+                #print "turn right-1"
             elif r == 0 and l < len(self.left) and l != 0:
                 self.robot_controller.set_move_cmd(0.0, -0.4)    
                 self.robot_controller.publish()
-                print "turn right-2"
+                #print "turn right-2"
             elif r < len(self.right) and l == 0 and r != 0:
                 self.robot_controller.set_move_cmd(0.0, 0.4)    
                 self.robot_controller.publish()
-                print "turn left-3"
+                #print "turn left-3"
             elif r < len(self.right) and l < len(self.left) and r != 0 and l != 0:
                 self.robot_controller.set_move_cmd(0.0, -0.4)    
                 self.robot_controller.publish()
-                print "turn right-3"            
+                #print "turn right-3"            
         self.robot_controller.set_move_cmd(0.25, 0.0)    
         self.robot_controller.publish()
-        print "moving forward"
+        #print "moving forward"
             
     
     def rotate_left(self):
         self.robot_controller.set_move_cmd(0.0, 0.4)    
         self.robot_controller.publish()
-        print "Rotate to find beacon"
+        #print "Rotate to find beacon"
 
     def rotate_right(self):
         self.robot_controller.set_move_cmd(0.0, -0.4)    
         self.robot_controller.publish()
-        print "Rotate to find beacon"
+        #print "Rotate to find beacon"
 
 
     def check_object(self):
@@ -215,16 +215,16 @@ class colour_search(object):
             self.move_rate = 'fast'                
         if self.move_rate == 'fast':
             self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
-            print "Turn fast"
+            #print "Turn fast"
         elif self.move_rate == 'slow':
             if 0 < self.cy and self.cy <= 560-100:
                 self.robot_controller.set_move_cmd(0.1, 0.25)
                 self.robot_controller.publish()
-                print "Adjust left"
+                #print "Adjust left"
             elif self.cy > 560+100:
                 self.robot_controller.set_move_cmd(0.1, -0.25)
                 self.robot_controller.publish()
-                print "Adjust right"
+                #print "Adjust right"
         elif self.move_rate == 'stop':
             if self.close_front_distance < 0.6 :
                 self.robot_controller.set_move_cmd(0.1, 0.0)
@@ -235,7 +235,7 @@ class colour_search(object):
                 self.distance_status = True
             else:
                 self.avoid_object()  
-                print "moving towards beacon"                           
+                #print "moving towards beacon"                           
         else:
             self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
         
