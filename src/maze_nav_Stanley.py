@@ -152,11 +152,11 @@ class maze_nav(object):
         rospy.sleep(2)                
     
     def avoid_wall(self):
-        if self.left_arc < 0.3:
+        if self.left_arc < 0.2:
             self.robot_controller.set_move_cmd(0.0, -0.3)
             self.robot_controller.publish()
             print "adjust turn right"
-        elif self.right_arc < 0.3:
+        elif self.right_arc < 0.2:
             self.robot_controller.set_move_cmd(0.0, 0.3)
             self.robot_controller.publish()
             print" adjust turn left"
