@@ -1,0 +1,4 @@
+<launch>
+    <node name="maze_beacon" pkg="team17" type="task5_Andrei.py" output="screen">
+    </node>
+</launch>
