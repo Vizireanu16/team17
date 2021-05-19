@@ -42,7 +42,7 @@ class colour_search(object):
         self.rate = rospy.Rate(5000)
         
         self.m00 = 0
-        self.m00_min = 100000
+        self.m00_min = 1000000
 
         self.mask = np.zeros((1080,1920,1), np.uint8)
         self.hsv_img = np.zeros((1080,1920,3), np.uint8)
@@ -62,10 +62,21 @@ class colour_search(object):
             LaserScan, self.scan_callback)
 
         self.robot_odom = TB3Odometry()
-        self.arc_angles = np.arange(-45, 45)
+        self.arc_angles = np.arange(-96, 96)
+        self.all_distance = 0.0
+        self.all_angle = 0.0
+        self.front_distance = 0.0
+        self.front_angle = 0.0
+        self.right_distance = 0.0
+        self.right_angle = 0.0
+        self.left_distance = 0.0
+        self.left_angle = 0.0
+        self.small_front_distance = 0
+        self.small_front_angle = 0
+        self.raw_data = []
+
         self.init_x = 0
         self.init_y = 0
-        self.raw_data = []
 
         self.init_search = False
 
@@ -91,23 +102,23 @@ class colour_search(object):
         self.front_angle = front_arc_angle[np.argmin(front_arc)]
         
         #right detection
-        right_arc = scan_data.ranges[314:344]
+        right_arc = scan_data.ranges[-70:-15]
         right_side_arc = np.array(right_arc[::1])
-        right_arc_angle = np.arange(314,344)
+        right_arc_angle = np.arange(-70,-15)
 
         # find the miniumum object distance within the right laserscan arc:
         self.right_distance = right_side_arc.min()
         self.right_angle = right_arc_angle[np.argmin(right_side_arc)]
 
-
         #left detection
-        left_arc = scan_data.ranges[16:46]
+        left_arc = scan_data.ranges[16:60]
         left_side_arc = np.array(left_arc[::1])
-        left_arc_angle = np.arange(16,46)
+        left_arc_angle = np.arange(16,60)
 
         # find the miniumum object distance within the left laserscan arc:
         self.left_distance = left_side_arc.min()
         self.left_angle = left_arc_angle[np.argmin(left_side_arc)]
+            
 
     def camera_callback(self, img_data):
         try:
@@ -155,7 +166,7 @@ class colour_search(object):
         time.sleep(6)
 
     def turn_back(self):
-        self.robot_controller.set_move_cmd(0.0, -0.35)    
+        self.robot_controller.set_move_cmd(0.0, -0.34)    
         self.robot_controller.publish()
         #print "turning back"
         time.sleep(6)
@@ -163,84 +174,47 @@ class colour_search(object):
         #print "stop"
 
     def leave_spawn(self):
-        self.robot_controller.set_move_cmd(0.15, 0.0)    
+        self.robot_controller.set_move_cmd(0.2, 0.0)    
         self.robot_controller.publish()
         #print "leaving spawn"
-        time.sleep(3)
+        time.sleep(1)
+
 
     def move_around(self, distance):
-        if self.front_distance > distance and self.left_distance > distance and self.right_distance > distance:
-            self.robot_controller.set_move_cmd(0.2, 0)
+        if self.front_distance > distance and self.right_distance > distance:
+            self.robot_controller.set_move_cmd(0.2, -0.8)
             self.robot_controller.publish()
-            print "forward 1"
-        #case2: if there is no distance in front
-        elif self.front_distance < distance and self.left_distance > distance and self.right_distance > distance: 
-            if self.left_distance > self.right_distance:
-                self.robot_controller.stop()
-                self.robot_controller.set_move_cmd(-0.2, 0.4)
-                print "back right1"
-            elif self.left_distance < self.right_distance:
-                self.robot_controller.stop()
-                self.robot_controller.set_move_cmd(-0.2, -0.4)#
-                print "back left1"
+            #print "right1"
+        elif self.front_distance < distance and self.right_distance > distance:
+            self.robot_controller.set_move_cmd(0, -0.5)
             self.robot_controller.publish()
-        #case3: if there is no distance around left or right
-        elif self.front_distance > distance and self.left_distance < distance and self.right_distance < distance:
-            self.robot_controller.stop()
-            self.robot_controller.set_move_cmd(0.2, 0)#
+            #print "right2"
+        elif self.front_distance > distance and self.right_distance < distance:
+            self.robot_controller.set_move_cmd(0.01, 0.5)
             self.robot_controller.publish()
-            print "forward 2"
-        #case4: if there is no distance on the right
-        elif self.front_distance > distance and self.left_distance > distance and self.right_distance < distance:
-            self.robot_controller.stop()
-            self.robot_controller.set_move_cmd(0, 0.4)
+            #print "left1"
+        elif self.front_distance < distance and self.right_distance < distance:
+            self.robot_controller.set_move_cmd(0, 0.5)
             self.robot_controller.publish()
-            print "turn left1"
-        #case5: if there is no distance on the left
-        elif self.front_distance > distance and self.left_distance < distance and self.right_distance > distance:
-            self.robot_controller.stop()
-            self.robot_controller.set_move_cmd(0, -0.4)
+            #print "left2"
+        else:
+            self.robot_controller.set_move_cmd(0, -0.5)
             self.robot_controller.publish()
-            print "turn right1"
-        #case6: if there is no distance on the left and front
-        elif self.front_distance < distance and self.left_distance < distance and self.right_distance > distance:
-            self.robot_controller.stop()
-            self.robot_controller.set_move_cmd(0, -0.4)
-            self.robot_controller.publish()
-            print "turn right2"
-        #case7: if there is no distance on the right and front
-        elif self.front_distance < distance and self.left_distance > distance and self.right_distance < distance:
-            self.robot_controller.stop()
-            self.robot_controller.set_move_cmd(0, 0.4)
-            self.robot_controller.publish()
-            print "turn left2"
-        #case8: if there is no distance anywhere
-        elif self.front_distance < distance and self.left_distance < distance and self.right_distance < distance:
-            if self.left_distance > self.right_distance:
-                self.robot_controller.stop()
-                self.robot_controller.set_move_cmd(0, 2)
-                self.robot_controller.publish()
-                print "turn left3"
-            elif self.left_distance < self.right_distance:
-                self.robot_controller.stop()
-                self.robot_controller.set_move_cmd(0, -2)
-                self.robot_controller.publish()
-                print "turn right3"
-            
+            #print "right3"
     
-    #def rotate_left(self):
-        #self.robot_controller.set_move_cmd(0.0, 0.4)    
-        #self.robot_controller.publish()
-        #print "Rotate to find beacon"
+    def check_spawn(self):
+        distance_to_spawn = math.sqrt((self.robot_odom.posx - self.init_x)**2 + (self.robot_odom.posy- self.init_y)**2)
+        #print(distance_to_spawn)
+        IfSpawn = False
+        if distance_to_spawn > 2:
+            IfSpawn = False
+        else: 
+            IfSpawn = True
 
-    #def rotate_right(self):
-        #self.robot_controller.set_move_cmd(0.0, -0.4)    
-        #self.robot_controller.publish()
-        #print "Rotate to find beacon"
-
+        return IfSpawn
 
     def check_object(self):
-        if self.m00 > self.m00_min:           
+        if self.m00 > self.m00_min and self.check_spawn() == False:           
             if self.cy >= 560-100 and self.cy <= 560+100:
                 if self.move_rate == 'slow':
                     self.move_rate = 'stop'                             
@@ -249,19 +223,19 @@ class colour_search(object):
         else:
             self.move_rate = 'fast'                
         if self.move_rate == 'fast':
-            self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+            self.move_around(0.35)
             #print "Turn fast"
         elif self.move_rate == 'slow':
-            if 0 < self.cy and self.cy <= 560-100:
+            if 0 < self.cy and self.cy <= 560-100 and self.check_spawn() == True:
                 self.robot_controller.set_move_cmd(0.1, 0.25)
                 self.robot_controller.publish()
-                #print "Adjust left"
+                print "Adjust left"
             elif self.cy > 560+100:
                 self.robot_controller.set_move_cmd(0.1, -0.25)
                 self.robot_controller.publish()
-                #print "Adjust right"
+                print "Adjust right"
         elif self.move_rate == 'stop':
-            if self.close_front_distance < 0.6 :
+            if self.close_front_distance < 0.6 and self.check_spawn() == True:
                 self.robot_controller.set_move_cmd(0.1, 0.0)
                 self.robot_controller.publish()
                 time.sleep(2)
@@ -269,12 +243,11 @@ class colour_search(object):
                 print "BEACONING COMPLETE: The robot has now stopped."
                 self.distance_status = True
             else:
-                self.avoid_object()  
+                self.move_around(0.35)  
                 #print "moving towards beacon"                           
-        else:
-            self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
-        
-            
+        elif self.check_spawn() == True:
+            self.move_around(0.35) 
+                    
         self.robot_controller.publish()
 
 
@@ -287,28 +260,16 @@ class colour_search(object):
         self.distance_status = False
         #counter = 0
         while not self.ctrl_c:
-            if self.m00 > self.m00_min: 
+            if self.m00 > self.m00_min and self.check_spawn() == True: 
                 self.init_search = True
                 if self.init_search == False:                    
                     print "BEACON DETECTED: Beaconing initiated."     
                 self.check_object()
                 if self.distance_status == True:
                     break
-            #elif counter == 79500 and self.m00 < self.m00_min :
-                #rotate_counter = 0
-                #while rotate_counter < 30000 and self.m00 < self.m00_min:
-                    #self.rotate_right()
-                    #rotate_counter+=1               
-                #while 30000 < rotate_counter < 90000 and self.m00 < self.m00_min:
-                    #self.rotate_left()
-                    #rotate_counter+=1
-                #while 90000 < rotate_counter < 120000 and self.m00 < self.m00_min:
-                    #self.rotate_right()
-                    #rotate_counter+=1
-                #counter = 0
             else:
                 #counter+=1
-                self.move_around(0.358)
+                self.move_around(0.35)
                 #print "nav through maze"
                  
         self.rate.sleep()
