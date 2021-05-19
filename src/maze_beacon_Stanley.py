@@ -73,8 +73,8 @@ class colour_search(object):
         self.small_front_angle = 0
         self.raw_data = []
 
-        self.init_x = 0
-        self.init_y = 0
+        self.init_x = 0.0
+        self.init_y = 0.0
 
         self.init_search = False
 
@@ -100,9 +100,9 @@ class colour_search(object):
         self.front_angle = front_arc_angle[np.argmin(front_arc)]
         
         #right detection
-        right_arc = scan_data.ranges[-65:-15]
+        right_arc = scan_data.ranges[-70:-15]
         right_side_arc = np.array(right_arc[::1])
-        right_arc_angle = np.arange(-65,-15)
+        right_arc_angle = np.arange(-70,-15)
 
         # find the miniumum object distance within the right laserscan arc:
         self.right_distance = right_side_arc.min()
@@ -154,21 +154,21 @@ class colour_search(object):
             
     def turn_180(self):
         time.sleep(1)
-        self.robot_controller.set_move_cmd(0.0, 0.33)    
+        self.robot_controller.set_move_cmd(0.0, 0.66)    
         self.robot_controller.publish()
         #print "checking colour"
-        time.sleep(6)
+        time.sleep(3)
 
     def turn_back(self):
-        self.robot_controller.set_move_cmd(0.0, -0.34)    
+        self.robot_controller.set_move_cmd(0.0, -0.68)    
         self.robot_controller.publish()
         #print "turning back"
-        time.sleep(6)
+        time.sleep(3)
         self.robot_controller.stop()   
         #print "stop"
 
     def leave_spawn(self):
-        self.robot_controller.set_move_cmd(0.2, 0.0)    
+        self.robot_controller.set_move_cmd(0.18, 0.0)    
         self.robot_controller.publish()
         #print "leaving spawn"
         time.sleep(1)
@@ -178,34 +178,35 @@ class colour_search(object):
         if self.front_distance > distance and self.right_distance > distance:
             self.robot_controller.set_move_cmd(0.2, -0.8)
             self.robot_controller.publish()
-            print "right1"
+            #print "right1"
         elif self.front_distance < distance and self.right_distance > distance:
             self.robot_controller.set_move_cmd(0, -0.5)
             self.robot_controller.publish()
-            print "right2"
+            #print "right2"
         elif self.front_distance > distance and self.right_distance < distance:
             self.robot_controller.set_move_cmd(0.01, 0.5)
             self.robot_controller.publish()
-            print "left1"
+            #print "left1"
         elif self.front_distance < distance and self.right_distance < distance:
             self.robot_controller.set_move_cmd(0, 0.5)
             self.robot_controller.publish()
-            print "left2"
+            #print "left2"
         else:
             self.robot_controller.set_move_cmd(0, -0.5)
             self.robot_controller.publish()
-            print "right3"
+            #print "right3"
     
+
     def check_spawn(self):
         distance_to_spawn = math.sqrt((self.robot_odom.posx - self.init_x)**2 + (self.robot_odom.posy- self.init_y)**2)
         #print(distance_to_spawn)
         IfSpawn = False
-        if distance_to_spawn > 2:
-            IfSpawn = False
+        if distance_to_spawn > 1.5:
+            spawn = False
         else: 
-            IfSpawn = True
+            spawn = True
 
-        return IfSpawn
+        return spawn
 
     def check_object(self):
         if self.m00 > self.m00_min and self.check_spawn() == False:           
@@ -219,17 +220,17 @@ class colour_search(object):
         if self.move_rate == 'fast':
             self.maze_nav(0.35)
             #print "Turn fast"
-        elif self.move_rate == 'slow':
-            if 0 < self.cy and self.cy <= 560-100 and self.check_spawn() == True:
+        elif self.move_rate == 'slow' and self.check_spawn() == False:
+            if 0 < self.cy and self.cy <= 560-100 and self.check_spawn() == False:
                 self.robot_controller.set_move_cmd(0.1, 0.25)
                 self.robot_controller.publish()
-                print "Adjust left"
+                #print "Adjust left"
             elif self.cy > 560+100:
                 self.robot_controller.set_move_cmd(0.1, -0.25)
                 self.robot_controller.publish()
-                print "Adjust right"
-        elif self.move_rate == 'stop':
-            if self.close_front_distance < 0.6 and self.check_spawn() == True:
+                #print "Adjust right"
+        elif self.move_rate == 'stop' and self.check_spawn() == False:
+            if self.close_front_distance < 0.2 and self.check_spawn() == False:
                 self.robot_controller.set_move_cmd(0.1, 0.0)
                 self.robot_controller.publish()
                 time.sleep(2)
@@ -238,8 +239,8 @@ class colour_search(object):
                 self.distance_status = True
             else:
                 self.maze_nav(0.35)  
-                #print "moving towards beacon"                           
-        elif self.check_spawn() == True:
+                print "moving towards beacon"                           
+        elif self.check_spawn() == False:
             self.maze_nav(0.35) 
                     
         self.robot_controller.publish()
@@ -254,7 +255,8 @@ class colour_search(object):
         self.distance_status = False
         #counter = 0
         while not self.ctrl_c:
-            if self.m00 > self.m00_min and self.check_spawn() == True: 
+            print self.check_spawn()
+            if self.m00 > self.m00_min and self.check_spawn() == False: 
                 self.init_search = True
                 if self.init_search == False:                    
                     print "BEACON DETECTED: Beaconing initiated."     
