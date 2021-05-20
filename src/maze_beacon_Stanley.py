@@ -310,7 +310,6 @@ class colour_search(object):
         self.find_colour()   #check target colour
         self.turn_back()     #turn back to the front
         self.leave_spawn()   #move forward
-        self.init_search = False
         self.distance_status = False
         if self.start_nav == False:
                 self.init_x = self.robot_odom.posx
@@ -319,9 +318,9 @@ class colour_search(object):
         #counter = 0
         while not self.ctrl_c:
             if self.m00 > self.m00_min and self.check_spawn() == False: 
-                self.init_search = True
                 if self.init_search == False:                    
-                    print "BEACON DETECTED: Beaconing initiated."     
+                    print "BEACON DETECTED: Beaconing initiated." 
+                    self.init_search = True   
                 self.check_object()
                 if self.distance_status == True:
                     break
