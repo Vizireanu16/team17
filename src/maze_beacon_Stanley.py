@@ -65,13 +65,10 @@ class colour_search(object):
         self.arc_angles = np.arange(-96, 96)
         self.all_distance = 0.0
         self.all_angle = 0.0
-        self.front_distance = 0.0
+        self.front_distance16 = 0.0
         self.front_angle = 0.0
-        self.right_distance = 0.0
+        self.right_distance15_70 = 0.0
         self.right_angle = 0.0
-        self.small_front_distance = 0
-        self.small_front_angle = 0
-        self.raw_data = []
 
         self.init_x = 0.0
         self.init_y = 0.0
@@ -90,33 +87,21 @@ class colour_search(object):
         close_front_arc = np.array(close_left_arc[::-1] + close_right_arc[::-1])
         self.close_front_distance = close_front_arc.min()
 
-        # front detection
-        front_left_arc = scan_data.ranges[0:16]
-        front_right_arc = scan_data.ranges[-15:]
-        front_arc = np.array(front_left_arc[::-1] + front_right_arc[::-1])
+        left_arc16 = scan_data.ranges[0:16]
+        right_arc16 = scan_data.ranges[-15:]
+        front_arc16 = np.array(left_arc16[::-1] + right_arc16[::-1])
         front_arc_angle = np.arange(-15, 16)
 
-        # find the miniumum object distance within the frontal laserscan arc:
-        self.front_distance = front_arc.min()
-        self.front_angle = front_arc_angle[np.argmin(front_arc)]
+        self.front_distance16 = front_arc16.min()
+        self.front_angle = front_arc_angle[np.argmin(front_arc16)]
         
-        #right detection
-        right_arc = scan_data.ranges[-70:-15]
-        right_side_arc = np.array(right_arc[::1])
-        right_arc_angle = np.arange(-70,-15)
+        right_arc15_70 = scan_data.ranges[-70:-15]
+        right_side_arc15_70 = np.array(right_arc15_70[::1])
+        right_arc_angle15_70 = np.arange(-70,-15)
 
-        # find the miniumum object distance within the right laserscan arc:
-        self.right_distance = right_side_arc.min()
-        self.right_angle = right_arc_angle[np.argmin(right_side_arc)]
+        self.right_distance15_70 = right_side_arc15_70.min()
+        self.right_angle15_70 = right_arc_angle15_70[np.argmin(right_side_arc15_70)]
 
-        #left detection
-        left_arc = scan_data.ranges[16:60]
-        left_side_arc = np.array(left_arc[::1])
-        left_arc_angle = np.arange(16,60)
-
-        # find the miniumum object distance within the left laserscan arc:
-        self.left_distance = left_side_arc.min()
-        self.left_angle = left_arc_angle[np.argmin(left_side_arc)]
 
         left_arc40 = scan_data.ranges[0:40]
         right_arc40 = scan_data.ranges[-40:]
@@ -189,19 +174,19 @@ class colour_search(object):
 
 
     def maze_nav(self, distance):
-        if self.front_distance > distance and self.right_distance > distance:
+        if self.front_distance16 > distance and self.right_distance15_70 > distance:
             self.robot_controller.set_move_cmd(0.2, -0.8)
             self.robot_controller.publish()
             #print "right1"
-        elif self.front_distance < distance and self.right_distance > distance:
+        elif self.front_distance16 < distance and self.right_distance15_70 > distance:
             self.robot_controller.set_move_cmd(0, -0.5)
             self.robot_controller.publish()
             #print "right2"
-        elif self.front_distance > distance and self.right_distance < distance:
+        elif self.front_distance16 > distance and self.right_distance15_70 < distance:
             self.robot_controller.set_move_cmd(0.08, 0.5)
             self.robot_controller.publish()
             #print "left1"
-        elif self.front_distance < distance and self.right_distance < distance:
+        elif self.front_distance16 < distance and self.right_distance15_70 < distance:
             self.robot_controller.set_move_cmd(0, 0.5)
             self.robot_controller.publish()
             #print "left2"
@@ -254,16 +239,20 @@ class colour_search(object):
         self.robot_controller.publish()
         #print "moving forward"
             
+    def mark_spawn(self):
+        if self.start_nav == False:
+                self.init_x = self.robot_odom.posx
+                self.init_y = self.robot_odom.posy
+                self.start_nav = True
 
     def check_spawn(self):
-        distance_to_spawn = math.sqrt((self.robot_odom.posx - self.init_x)**2 + (self.robot_odom.posy- self.init_y)**2)
-        #print(distance_to_spawn)
         spawn = False
-        if distance_to_spawn > 1.5:
+        spawn_distance = math.sqrt((self.robot_odom.posx - self.init_x)**2 + (self.robot_odom.posy- self.init_y)**2)
+        #print(spawn_distance)
+        if spawn_distance > 1.5:
             spawn = False
         else: 
             spawn = True
-
         return spawn
 
     def check_object(self):
@@ -294,7 +283,7 @@ class colour_search(object):
                 self.robot_controller.publish()
                 time.sleep(2)
                 self.robot_controller.stop()
-                print "BEACONING COMPLETE: The robot has now stopped."
+                print "FINAL CHALLENGE COMPLETE: The robot has now stopped."
                 self.distance_status = True
             else:
                 self.avoid_object()  
@@ -311,15 +300,11 @@ class colour_search(object):
         self.turn_back()     #turn back to the front
         self.leave_spawn()   #move forward
         self.distance_status = False
-        if self.start_nav == False:
-                self.init_x = self.robot_odom.posx
-                self.init_y = self.robot_odom.posy
-                self.start_nav = True
-        #counter = 0
+        self.mark_spawn()
         while not self.ctrl_c:
             if self.m00 > self.m00_min and self.check_spawn() == False: 
                 if self.init_search == False:                    
-                    print "BEACON DETECTED: Beaconing initiated." 
+                    print "TARGET BEACON IDENTIFIED: Beaconing initiated." 
                     self.init_search = True   
                 self.check_object()
                 if self.distance_status == True:
