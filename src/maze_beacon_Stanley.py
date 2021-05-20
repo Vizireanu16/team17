@@ -227,30 +227,30 @@ class colour_search(object):
                 if range < 0.4:
                     r = r + 1 
             if i == len(self.front_distance40):
-                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.set_move_cmd(0.0, 0.5)    
                 self.robot_controller.publish()
                 #print "turn left-1"
             elif r == len(self.right40) and l < len(self.left40):                   
-                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.set_move_cmd(0.0, 0.5)    
                 self.robot_controller.publish()
                 #print "turn left-2"                             
             elif r < len(self.right40) and l == len(self.left40):
-                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.set_move_cmd(0.0, -0.5)    
                 self.robot_controller.publish()
                 #print "turn right-1"
             elif r == 0 and l < len(self.left40) and l != 0:
-                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.set_move_cmd(0.0, -0.5)    
                 self.robot_controller.publish()
                 #print "turn right-2"
             elif r < len(self.right40) and l == 0 and r != 0:
-                self.robot_controller.set_move_cmd(0.0, 0.4)    
+                self.robot_controller.set_move_cmd(0.0, 0.5)    
                 self.robot_controller.publish()
                 #print "turn left-3"
             elif r < len(self.right40) and l < len(self.left40) and r != 0 and l != 0:
-                self.robot_controller.set_move_cmd(0.0, -0.4)    
+                self.robot_controller.set_move_cmd(0.0, -0.5)    
                 self.robot_controller.publish()
                 #print "turn right-3"            
-        self.robot_controller.set_move_cmd(0.25, 0.0)    
+        self.robot_controller.set_move_cmd(0.23, 0.0)    
         self.robot_controller.publish()
         #print "moving forward"
             
