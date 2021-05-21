@@ -40,7 +40,7 @@ class colour_search(object):
         rospy.on_shutdown(self.shutdown_ops)
 
         self.rate = rospy.Rate(5000)
-        
+
         self.m00 = 0
         self.m00_min = 10000000
 
@@ -80,10 +80,10 @@ class colour_search(object):
         self.robot_controller.stop()
         cv2.destroyAllWindows()
         self.ctrl_c = True
-    
+
     def scan_callback(self, scan_data):
         close_left_arc = scan_data.ranges[0:3]
-        close_right_arc = scan_data.ranges[-3:] 
+        close_right_arc = scan_data.ranges[-3:]
         close_front_arc = np.array(close_left_arc[::-1] + close_right_arc[::-1])
         self.close_front_distance = close_front_arc.min()
 
@@ -94,7 +94,7 @@ class colour_search(object):
 
         self.front_distance16 = front_arc16.min()
         self.front_angle = front_arc_angle[np.argmin(front_arc16)]
-        
+
         right_arc15_70 = scan_data.ranges[-70:-15]
         right_side_arc15_70 = np.array(right_arc15_70[::1])
         right_arc_angle15_70 = np.arange(-70,-15)
@@ -111,14 +111,14 @@ class colour_search(object):
         self.front_distance40 = front_arc40
         self.min_distance40 = front_arc40.min()
 
-            
+
 
     def camera_callback(self, img_data):
         try:
             cv_img = self.cvbridge_interface.imgmsg_to_cv2(img_data, desired_encoding="bgr8")
         except CvBridgeError as e:
             print(e)
-        
+
         height, width, channels = cv_img.shape
         crop_width = width - 800
         crop_height = 400
@@ -128,7 +128,7 @@ class colour_search(object):
         crop_img = cv_img[crop_y:crop_y+crop_height, crop_x:crop_x+crop_width]
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
         self.hsv_img = hsv_img
-        
+
         if len(self.lowerbound) != 0 and len(self.upperbound) != 0:
             self.mask = cv2.inRange(hsv_img, self.lowerbound, self.upperbound)
 
@@ -139,35 +139,35 @@ class colour_search(object):
         #if self.m00 > self.m00_min:
         cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
         cv2.imshow('cropped image', crop_img)
-        cv2.waitKey(5)      
-        
+        cv2.waitKey(5)
+
     def find_colour(self):
         for color_name, (lower, upper) in self.color_boundaries.items():
             lower_bound = np.array(lower)
             upper_bound = np.array(upper)
             mask = cv2.inRange(self.hsv_img, lower_bound, upper_bound)
             if mask.any():
-                print("SEARCH INITIATED: The target beacon colour is {}".format (color_name))
+                print("TARGET COLOUR DETECTED: The target beacon is {}".format (color_name))
                 self.lowerbound = lower_bound
                 self.upperbound = upper_bound
-            
+
     def turn_180(self):
         time.sleep(1)
-        self.robot_controller.set_move_cmd(0.0, 0.66)    
+        self.robot_controller.set_move_cmd(0.0, 0.66)
         self.robot_controller.publish()
         #print "checking colour"
         time.sleep(3)
 
     def turn_back(self):
-        self.robot_controller.set_move_cmd(0.0, -0.68)    
+        self.robot_controller.set_move_cmd(0.0, -0.68)
         self.robot_controller.publish()
         #print "turning back"
         time.sleep(3)
-        self.robot_controller.stop()   
+        self.robot_controller.stop()
         #print "stop"
 
     def leave_spawn(self):
-        self.robot_controller.set_move_cmd(0.18, 0.0)    
+        self.robot_controller.set_move_cmd(0.18, 0.0)
         self.robot_controller.publish()
         #print "leaving spawn"
         time.sleep(1)
@@ -194,9 +194,9 @@ class colour_search(object):
             self.robot_controller.set_move_cmd(0, -0.5)
             self.robot_controller.publish()
             #print "right3"
-    
+
     def avoid_object(self):
-        while self.min_distance40 < 0.4: 
+        while self.min_distance40 < 0.4:
             i = 0
             l = 0
             r = 0
@@ -210,35 +210,35 @@ class colour_search(object):
 
             for range in self.right40:
                 if range < 0.4:
-                    r = r + 1 
+                    r = r + 1
             if i == len(self.front_distance40):
-                self.robot_controller.set_move_cmd(0.0, 0.5)    
+                self.robot_controller.set_move_cmd(0.0, 0.5)
                 self.robot_controller.publish()
                 #print "turn left-1"
-            elif r == len(self.right40) and l < len(self.left40):                   
-                self.robot_controller.set_move_cmd(0.0, 0.5)    
+            elif r == len(self.right40) and l < len(self.left40):
+                self.robot_controller.set_move_cmd(0.0, 0.5)
                 self.robot_controller.publish()
-                #print "turn left-2"                             
+                #print "turn left-2"
             elif r < len(self.right40) and l == len(self.left40):
-                self.robot_controller.set_move_cmd(0.0, -0.5)    
+                self.robot_controller.set_move_cmd(0.0, -0.5)
                 self.robot_controller.publish()
                 #print "turn right-1"
             elif r == 0 and l < len(self.left40) and l != 0:
-                self.robot_controller.set_move_cmd(0.0, -0.5)    
+                self.robot_controller.set_move_cmd(0.0, -0.5)
                 self.robot_controller.publish()
                 #print "turn right-2"
             elif r < len(self.right40) and l == 0 and r != 0:
-                self.robot_controller.set_move_cmd(0.0, 0.5)    
+                self.robot_controller.set_move_cmd(0.0, 0.5)
                 self.robot_controller.publish()
                 #print "turn left-3"
             elif r < len(self.right40) and l < len(self.left40) and r != 0 and l != 0:
-                self.robot_controller.set_move_cmd(0.0, -0.5)    
+                self.robot_controller.set_move_cmd(0.0, -0.5)
                 self.robot_controller.publish()
-                #print "turn right-3"            
-        self.robot_controller.set_move_cmd(0.23, 0.0)    
+                #print "turn right-3"
+        self.robot_controller.set_move_cmd(0.23, 0.0)
         self.robot_controller.publish()
         #print "moving forward"
-            
+
     def mark_spawn(self):
         if self.start_nav == False:
                 self.init_x = self.robot_odom.posx
@@ -251,19 +251,19 @@ class colour_search(object):
         #print(spawn_distance)
         if spawn_distance > 1.5:
             spawn = False
-        else: 
+        else:
             spawn = True
         return spawn
 
     def check_object(self):
-        if self.m00 > self.m00_min and self.check_spawn() == False:           
+        if self.m00 > self.m00_min and self.check_spawn() == False:
             if self.cy >= 560-100 and self.cy <= 560+100:
                 if self.move_rate == 'slow':
-                    self.move_rate = 'stop'                             
+                    self.move_rate = 'stop'
             else:
                 self.move_rate = 'slow'
         else:
-            self.move_rate = 'fast'                
+            self.move_rate = 'fast'
         if self.move_rate == 'fast':
             self.maze_nav(0.35)
             #print "Turn fast"
@@ -286,11 +286,11 @@ class colour_search(object):
                 print "FINAL CHALLENGE COMPLETE: The robot has now stopped."
                 self.distance_status = True
             else:
-                self.avoid_object()  
-                #print "moving towards beacon"                           
+                self.avoid_object()
+                #print "moving towards beacon"
         elif self.check_spawn() == False:
-            self.maze_nav(0.35) 
-                    
+            self.maze_nav(0.35)
+
         self.robot_controller.publish()
 
 
@@ -302,21 +302,21 @@ class colour_search(object):
         self.distance_status = False
         self.mark_spawn()
         while not self.ctrl_c:
-            if self.m00 > self.m00_min and self.check_spawn() == False: 
-                if self.init_search == False:                    
-                    print "TARGET BEACON IDENTIFIED: Beaconing initiated." 
-                    self.init_search = True   
+            if self.m00 > self.m00_min and self.check_spawn() == False:
+                if self.init_search == False:
+                    print "TARGET BEACON IDENTIFIED: Beaconing initiated."
+                    self.init_search = True
                 self.check_object()
                 if self.distance_status == True:
                     break
             else:
                 self.maze_nav(0.35)
-                 
+
         self.rate.sleep()
 
-            
-            
-            
+
+
+
 if __name__ == '__main__':
     search_ob = colour_search()
     try:
